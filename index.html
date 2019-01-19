@@ -288,11 +288,11 @@
       const themes = {
 	'default': {
 	  pen: {strokeStyle: '#000000', lineWidth: 2},
-	  gridOpacity: [1.0, 0.6][gridContrast % 2],
-	  grid: {strokeStyle: (alpha) => getRGBA(alpha, currentColors[(gridContrast + 1) % 2]), lineWidth: 2},
+	  gridOpacity: 1,
+	  grid: {strokeStyle: (alpha) => {return `rgba(255, 255, 255, ${alpha})`}, lineWidth: 2},
 	  backgroundOpacity: 0.0,
-	  background: (alpha) => getRGBA(alpha, currentColors[1]),
-	  cells: 6.4,
+	  background: (alpha) => `rgba(255, 255, 255, ${alpha})`,
+	  cells: 12.4,
 	  image: collections,
 	  zoom: 0,
 	  initialGrid: 0
