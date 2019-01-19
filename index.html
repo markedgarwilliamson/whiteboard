@@ -1,0 +1,2177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+  </head>
+  <body style="margin: 0; cursor: crosshair">
+    <canvas id="imageCanvas" style="position: absolute; left: 0px; top: 0px; z-index: 1;"></canvas>
+    <canvas id="backgroundCanvas" style="position: absolute; left: 0px; top: 0px; z-index: 2;"></canvas>
+    <canvas id="gridCanvas" style="position: absolute; left: 0px; top: 0px; z-index: 3;"></canvas>
+    <canvas id="penCanvas" style="position: absolute; left: 0px; top: 0px; z-index: 4;"></canvas>
+    <script>
+      // WHITEBOARD
+      
+      // CONTROLS
+      // the Escape key clears all the pen markings, while holding down the spacebar activates an eraser.
+      // holding down 'z' allows you to erase everything inside a rectangular area.
+      // 'r', 'g', 'b', 'c', 'm', 'y', 'k' and 'w'  control the colors,
+      // making the pen color red, green, blue, cyan, magenta, yellow, black, or white, respectively.
+      // Shift makes the pen's line width bold
+      // '-' and '=' will decrease, or increase the pen's line width.
+      // 't', 's', 'x', 'd', and ';' toggle the triangular, square, hexagonal, square dots, or lined grids.
+      // 'j' toggles between a white and black background
+      // 'n' cycles through colored backgrounds
+      // change background opacity with the number keys, or make it transparent with the '`' key.
+      // each number represents one tenth of the total opacity, whereas the '0' key will make the opacity total. 
+      // the 'q' key is used for quadrilaterals, 'e' is for ellipses.
+      // 'l' will draw a line and this line will set the angle for the parallel constraint.
+      // the forward-slash '/' will constrain the line to one parallel to the last line drawn w the line tool.
+      // The arrow keys can also be used to constrain the motion of the pen.
+      // The left arrow constrains the pen to horizontal lines.
+      // The up arrow constrains the pen to vertical lines.
+      // The down arrow constrains the pen to lines radiating from a vanishing point, which is the center by default.
+      // The right arrow constrains the pen to drawing an arc, centered at the vanishing point.
+      // The location of the vanishing point can be set by hovering over a point and pressing the 'v' key.
+
+      // SLIDESHOW
+      // a variable called slideshow contains an array of file paths.
+      // the '.' and ',' keys go forward and back, respectively.
+
+      // PENS
+      // you can provide a filepath to the 'image' query parameter to set the background image.
+      // providing a link of filepasths separated by a '+' symbol to the 'pens' query parameter 
+      // will import an image onto the pen context.
+      // to save the contents of a pen context, right click the window, and select 'save image as'
+
+      // process query string
+      const getQuery = (url) => {
+	const queryString = url.includes('?') ? url.substring(url.indexOf('?') + 1) : undefined
+	if (queryString) {
+	  return queryString.split('&').reduce(
+	    (params, pair) => {
+	      pair = pair.split('=')
+	      params[pair[0]] = pair[1]
+	      return params
+	    },
+	    {}
+	  )
+	}
+	return {}
+      }
+      const query = getQuery(window.location.href)
+
+      let canvasWidth = query.screenWidth || window.screen.width // 1366
+      let canvasHeight = query.screenHeight || window.screen.height // 768
+
+      const numText = /[+-]?([0-9]*[.])?[0-9]+/g
+      
+      // define Array prototype
+      Array.prototype.random = function () {
+	return this[Math.floor((Math.random()*this.length))];
+      }
+      
+      const canvas = {
+	image: document.getElementById('imageCanvas'),
+	background: document.getElementById('backgroundCanvas'),
+	grid: document.getElementById('gridCanvas'),
+	pen: document.getElementById('penCanvas')
+      } 
+      canvas.context = Object.keys(canvas).reduce(function(obj, key) {
+	canvas[key].width = canvasWidth;
+	canvas[key].height = canvasHeight;
+	obj[key] = canvas[key].getContext('2d');
+	return obj;
+      }, {})
+
+      const snap = () => {
+	canvasWidth = window.innerWidth
+	canvasHeight = window.innerHeight
+	for (let key of ['image', 'background', 'grid', 'pen']) {
+	  canvas[key].width = canvasWidth
+	  canvas[key].height = canvasHeight
+	}
+	clearCanvas(image)
+	// try-catch
+	setImage(query.image || themes[initialTheme].image() || defaultImage, image)
+	applyTheme({
+	  pen: {strokeStyle: pen.strokeStyle, lineWidth: pen.lineWidth},
+	  grid: {strokeStyle: (currentGridOpacity) => getRGBA(currentGridOpacity, currentGridColor), lineWidth: 2},
+	  backgroundOpacity: currentBackgroundOpacity,
+	  background: (alpha) => themes[initialTheme].background(alpha),
+	  image: collections,
+	  cells: cells,
+	  initialGrid: currentGrid
+	})
+	pen.strokeStyle = currentColors[0]
+	pen.fillStyle = pen.strokeStyle
+	pen.lineWidth = themes[initialTheme].pen.lineWidth
+	setBackground(currentBackgroundOpacity)
+	center.set(canvasWidth / 2, canvasHeight / 2)
+	vanish.set(center.x, center.y)
+	grids[currentGrid](cells)
+      }
+      
+      const image = canvas.image.getContext('2d');
+      const background = canvas.background.getContext('2d');
+      const grid = canvas.grid.getContext('2d');
+      const pen = canvas.pen.getContext('2d');
+      const periodicTable = () => 'https://www.cmu.edu/news/stories/archives/2016/january/images/periodic_table_large.png'
+      const collections = () => {
+	const collection = query.collection || [
+	  175083, 
+	  2227966, 
+	  1136512, 
+	  256789, 
+	  770373, 
+	  1340426, 
+	  786426, 
+	  1093185, 
+	  2073541, 
+	  631014, 
+	  311432, 
+	  401930, 
+	  1558570, 
+	  634016, 
+	  1753486, 
+	  525374, 
+	  402648, 
+	  944309, 
+	  1223029, 
+	  1045960, 
+	  136192, 
+	  139523, 
+	  490159, 
+	  1319676, 
+	  603534, 
+	  1705422, 
+	  421702, 
+	  1201283, 
+	  1280629, 
+	  250310, 
+	  1079579, 
+	  159185, 
+	  357250, 
+	  461372, 
+	  222193, 
+	  981639, 
+	  389015, 
+	  427860, 
+	  1922955, 
+	  550831, 
+	  1566993, 
+	  228211, 
+	  637183, 
+	  1348126, 
+	  860813, 
+	  279087, 
+	  893395, 
+	  1445644, 
+	  1364697, 
+	  266986, 
+	  1130937, 
+	  1030539, 
+	  441643, 
+	  1301636, 
+	  1078224, 
+	  346831, 
+	  217461, 
+	  195845, 
+	  291422, 
+	  326234, 
+	  1301396, 
+	  159106, 
+	  2222015, 
+	  993107, 
+	  1661394, 
+	  1563872, 
+	  789653, 
+	  139449, 
+	  395791, 
+	  168902, 
+	  1363567, 
+	  774640, 
+	  668423, 
+	  1091443, 
+	  631110, 
+	  589982, 
+	  251528, 
+	  158665, 
+	  1281908, 
+	  1025599, 
+	  403132, 
+	  542909, 
+	  1695735, 
+	  345761, 
+	  2241198, 
+	  2213392, 
+	  303466, 
+	  1266354, 
+	  932809, 
+	  525557, 
+	  1111575, 
+	  1698281, 
+	  325867, 
+	  992061, 
+	  973145, 
+	  1394721, 
+	  1949, 
+	  220388, 
+	  343012, 
+	  151521, 
+	  137627, 
+	  335992, 
+	  1494572, 
+	  148642, 
+	  311958, 
+	  460827, 
+	  1179044, 
+	  320872, 
+	  345744, 
+	  151899, 
+	  345758, 
+	  1163715, 
+	  256466, 
+	  926827, 
+	  1725806, 
+	  1152757, 
+	  981639, 
+	  647, 
+	  138884, 
+	  1477100, 
+	  1301689, 
+	  1664497,  
+	  1677633, 
+	  2020767, 
+	  924999, 
+	  147383, 
+	  934875, 
+	  1708734, 
+	  1751890, 
+	  668443, 
+	  1137170, 
+	  1134892, 
+	  1004394, 
+	  1366113,  
+	  632964, 
+	  142371, 
+	  536034, 
+	  923414, 
+	  490, 
+	  630848, 
+	  241614, 
+	  1117100, 
+	  896618, 
+	  525483, 
+	  444531, 
+	  1896376, 
+	  1515841, 
+	  1270392, 
+	  635672, 
+	  560743, 
+	  158642, 
+	  212915, 
+	  236531
+	].random()
+	return `https://source.unsplash.com/collection/${collection}/${canvasWidth}x${canvasHeight}`
+      }
+      const randomImage = () => `http://source.unsplash.com/random/${canvasWidth}x${canvasHeight}`
+      const slideshow = []
+      
+      let currentColors = ['#000000', '#ffffff']
+      let gridContrast
+      
+      if (query.gridContrast) {
+	gridContrast = parseInt(query.gridContrast)
+      } else {
+	gridContrast = 1
+      }
+      const themes = {
+	'default': {
+	  pen: {strokeStyle: '#000000', lineWidth: 2},
+	  gridOpacity: [1.0, 0.6][gridContrast % 2],
+	  grid: {strokeStyle: (alpha) => getRGBA(alpha, currentColors[(gridContrast + 1) % 2]), lineWidth: 2},
+	  backgroundOpacity: 0.0,
+	  background: (alpha) => getRGBA(alpha, currentColors[1]),
+	  cells: 6.4,
+	  image: collections,
+	  zoom: 0,
+	  initialGrid: 0
+	},
+	'whiteboard': {
+	  pen: {strokeStyle: '#000000', lineWidth: 2},
+	  gridOpacity: 1,
+	  grid: {strokeStyle: (alpha) => {return `rgba(255, 255, 255, ${alpha})`}, lineWidth: 2},
+	  backgroundOpacity: 0.7,
+	  background: (alpha) => `rgba(255, 255, 255, ${alpha})`,
+	  cells: 12.4,
+	  image: collections,
+	  zoom: 0,
+	  initialGrid: 4
+	},
+	'blackboard': {
+	  pen: {strokeStyle: '#ffffff', lineWidth: 2},
+	  gridOpacity: 0.5,
+	  grid: {strokeStyle: (alpha) => {return `rgba(255, 255, 255, ${alpha})`}, lineWidth: 2},
+	  backgroundOpacity: 0.8,
+	  background: (alpha) => `rgba(0, 0, 0, ${alpha})`,
+	  cells: 12.4,
+	  image: collections,
+	  zoom: 0,
+	  initialGrid: 0
+	},
+	'periodic': {
+	  pen: {strokeStyle: '#000000', lineWidth: 2},
+	  gridOpacity: 0.6,
+	  grid: {strokeStyle: (alpha) => {return `rgba(0, 127, 127, ${alpha})`}, lineWidth: 2},
+	  backgroundOpacity: 0.7,
+	  background: (alpha) => `rgba(255, 255, 255, ${alpha})`,
+	  cells: 12.4,
+	  image: periodicTable,
+	  zoom: 0,
+	  initialGrid: 0
+	},
+	'glass': {
+	  pen: {strokeStyle: '#ffffff', lineWidth: 2},
+	  gridOpacity: 1.0,
+	  grid: {strokeStyle: (alpha) => {return `rgba(0, 0, 0, ${alpha})`}, lineWidth: 2},
+	  backgroundOpacity: 0.0,
+	  background: (alpha) => `rgba(0, 0, 0, ${alpha})`,
+	  cells: 3.4,
+	  image: collections,
+	  zoom: 0,
+	  initialGrid: 3
+	},
+	'slideshow': {
+	  pen: {strokeStyle: '#000000', lineWidth: 2},
+	  gridOpacity: 0.6,
+	  grid: {strokeStyle: (alpha) => {return `rgba(0, 0, 0, ${alpha})`}, lineWidth: 2},
+	  backgroundOpacity: 0.0,
+	  background: (alpha) => `rgba(255, 255, 255, ${alpha})`,
+	  cells: 6.4,
+	  image: () => slideshow[0],
+	  zoom: 0,
+	  initialGrid: 0
+	},
+	'space': {
+	  pen: {strokeStyle: '#ffffff', lineWidth: 3},
+	  gridOpacity: 0.6,
+	  grid: {strokeStyle: (alpha) => {return `rgba(255, 255, 255, ${alpha})`}, lineWidth: 2},
+	  backgroundOpacity: 0.5,
+	  background: (alpha) => `rgba(0, 0, 100, ${alpha})`, 
+	  cells: 12,
+	  image: () => `https://source.unsplash.com/collection/1111575/${canvasWidth}x${canvasHeight}`,
+	  zoom: 1,
+	  initialGrid: 4
+	},
+	'dark green': {
+	  pen: {strokeStyle: '#ffff00', lineWidth: 3},
+	  gridOpacity: 0.6,
+	  grid: {strokeStyle: (alpha) => {return `rgba(0, 255, 0, ${alpha})`}, lineWidth: 2},
+	  backgroundOpacity: 0.8,
+	  background: (alpha) => `rgba(0, 10, 0, ${alpha})`, 
+	  cells: 12,
+	  image: () => './paisley.png',
+	  zoom: 1,
+	  initialGrid: 4
+	},
+	'tree': {
+	  pen: {strokeStyle: '#ffffff', lineWidth: 3},
+	  gridOpacity: 0.6,
+	  grid: {strokeStyle: (alpha) => {return `rgba(160, 160, 255, ${alpha}`}, lineWidth: 2},
+	  backgroundOpacity: 0.85,
+	  background: (alpha) => `rgba(0, 0, 6, ${alpha})`, 
+	  cells: 12,
+	  image: () => './tree-rings.jpg',
+	  zoom: 1,
+	  initialGrid: 4
+	},
+	'hemp': {
+	  pen: {strokeStyle: 'rgba(0, 100, 0, 1)', lineWidth: 3},
+	  gridOpacity: 0.5,
+	  grid: {strokeStyle: (alpha) => {return `rgba(0, 127, 0, ${alpha})`}, lineWidth: 2},
+	  backgroundOpacity: 0.7,
+	  background: (alpha) => `rgba(200, 255, 200, ${alpha})`, 
+	  cells: 12,
+	  image: './hemp.jpg',
+	  zoom: 1 ,
+	  initialGrid: 0
+	}
+      }     
+
+      //window.location.href.substring(window.location.href.indexOf('?') + 1) 
+
+      // CONFIGURATION
+      let initialTheme = query.theme || 'default'
+      //let imageURL = query.image || themes[theme].image
+      let cells
+      let zoom
+      let currentPenWidth
+      let currentGrid
+      let currentGridColor
+      let currentGridOpacity
+      let currentBackgroundOpacity
+      let currentBackgroundFillStyle
+      let currentAngle = 1.2277723863741932
+      let eraser
+      let currentEraseRadius
+      let contrast = 0
+      let slide = slideshow.length
+      let myGrid
+      
+      const applyTheme = (theme) => {
+	pen.strokeStyle = query.penColor || theme.pen.strokeStyle; //  sets the pen's color.
+	pen.fillStyle = pen.strokeStyle
+	currentPenWidth = query.penWidth || theme.pen.lineWidth; // sets the pen's line width.
+	pen.lineWidth = currentPenWidth
+	currentGridOpacity = currentGridOpacity || theme.gridOpacity
+	currentGridColor = theme.grid.strokeStyle(currentGridOpacity)
+	grid.fillStyle = grid.strokeStyle = query.gridColor || currentGridColor;
+	grid.lineWidth = query.gridWidth || theme.grid.lineWidth
+	currentBackgroundOpacity = query.backgroundOpacity || theme.backgroundOpacity
+	currentBackgroundFillStyle = query.background || theme.background(currentBackgroundOpacity)
+	background.fillStyle = currentBackgroundFillStyle; // adjust color and opacity of solid color layer between image and grid/pen;
+	cells = query.cells || theme.cells; // adjust how many cells occupy the shorter screen dimension.
+	zoom = query.zoom || theme.zoom; // set to 0 to view entire image, set to 1 to ensure that image fills entire window.
+	currentGrid = query.gridStyle || theme.initialGrid;
+	eraser = currentEraseRadius = query.eraseRadius || 10 + pen.lineWidth
+      }
+
+      const getRGB = (s) => ({
+	// take the string, and split it by 
+	r: parseInt(s.slice(1, 2), 16),
+	g: parseInt(s.slice(3, 5), 16),
+	b: parseInt(s.slice(5, 7), 16)
+      })
+
+      const getRGBA = (alpha, color) => {
+	let rgba
+	if (color.search(/#/) < 0) {
+	  rgba = color.match(numText)
+	} else (
+	  rgba = [
+	    parseInt(`0x${color.slice(1, 3)}`),
+	    parseInt(`0x${color.slice(3, 5)}`),
+	    parseInt(`0x${color.slice(5, 7)}`),
+	    1.0
+	  ]
+	)
+	if (alpha === undefined) {
+	  return `rgba(${rgba})`
+	} else {
+	  return `rgba(${rgba.slice(0, 3)},${alpha})`
+	}
+      }
+
+      
+      applyTheme(themes[initialTheme])
+      /* if (query.image) {
+
+       * } */
+      
+      // set background image
+      const clearCanvas = (canvas) => {
+	canvas.clearRect(0, 0, canvasWidth, canvasHeight); 
+      };
+
+      const displayImg = (ctx, obj) => {
+	if (!obj.complete){
+	  setTimeout(() => {
+	    displayImg(ctx, obj);
+	  }, 50);
+	  return;
+	}
+	if (zoom < 2) {
+	  let scale;
+	  let z = [canvasHeight/canvasWidth > obj.naturalHeight/obj.naturalWidth,
+	    canvasHeight/canvasWidth < obj.naturalHeight/obj.naturalWidth][zoom]
+	  if (z) {
+	    scale = canvasWidth/obj.naturalWidth
+	  } else {
+	    scale = canvasHeight/obj.naturalHeight
+	  }
+	  
+	  ctx.drawImage(obj,
+	    (canvasWidth - obj.naturalWidth*scale)/2,
+	    (canvasHeight - obj.naturalHeight*scale)/2,
+	    obj.naturalWidth * scale,
+	    obj.naturalHeight * scale
+	  )
+	} else {
+	  let scale = canvasHeight/canvasWidth < obj.naturalHeight/obj.naturalWidth ?
+	    canvasWidth/obj.naturalWidth : canvasHeight/obj.naturalHeight
+	  if (zoom > 2) {
+	    scale = 1
+	  }
+	  for (let layer in canvas) {
+	    canvas[layer].width = canvasWidth = obj.naturalWidth * scale
+	    canvas[layer].height = canvasHeight = obj.naturalHeight * scale
+	  }
+	  ctx.drawImage(obj, 0, 0, canvasWidth, canvasHeight)
+	}
+      };
+      let imageURL
+
+      const setImage = (src, context) => {
+	imageURL = src
+	if (src.includes('collection')) {
+	  if (navigator.onLine) {
+	    console.log(`collection: ${src.split('/')[4]}`)
+	  } else {
+	    setBackground(1, '#7F7F7F', image)
+	    console.log('currently offline')
+	    return
+	  }
+	}
+	clearCanvas(context)
+	let img = new Image()
+	img.src = src
+	displayImg(context, img)
+      };
+      
+      let pens
+      const measurements = {}
+      if (query.pens) {
+	pens = query.pens.split('+')
+	for (const context of pens) {
+	  setImage(context, pen)
+	}
+      }
+
+      const parseFilename = (name) => name.split('/').pop().split('.').slice(0, -1).join('.')
+      const tabTitle = (paths) => {
+	let names = []
+	for (path of paths) {
+	  names.push(parseFilename(path))
+	}
+	return names.join(', ')
+      }
+
+      // Set document.title, with nested conditionals
+      query.title ? document.title = query.title :
+	query.theme === 'slideshow' ? document.title = parseFilename(slideshow[0]) :
+	  pens ? document.title = tabTitle(pens) :
+	    query.image ? document.title = parseFilename(query.image) :
+	      document.title = 'Whiteboard'
+
+      const setBackground = (alpha, style=currentBackgroundFillStyle, context=background) => {
+	context.fillStyle = getRGBA(alpha, style)
+	context.clearRect(0, 0, canvasWidth, canvasHeight)
+	context.fillRect(0, 0, canvasWidth, canvasHeight) 
+      }
+
+      setBackground(currentBackgroundOpacity)
+
+      
+      // Prepare Objects for Grid
+      const drawLine = function(ctx, fv, tv, color) {
+	ctx.beginPath();
+	ctx.moveTo(fv.x, fv.y);
+	ctx.lineTo(tv.x, tv.y);
+	ctx.strokeStyle = color;
+	ctx.stroke();
+      };
+
+      // basic 2d vector object.
+      const Vector2 = function(x, y) {
+	this.x = x;
+	this.y = y;
+	this.set = function(x, y) {
+	  this.x = x;
+	  this.y = y;
+	};
+	this.copy = function() {
+	  return new Vector2(this.x, this.y);
+	};
+	this.add = function(v) {
+	  return new Vector2(this.x + v.x, this.y + v.y);
+	};
+	this.mult = function(s) {
+	  return new Vector2(this.x*s, this.y*s);
+	};
+	this.mag = function() {
+	  return (this.x**2 + this.y**2)**0.5;
+	};
+	this.distance = function(v) {
+	  return ((this.x - v.x)**2 + (this.y - v.y)**2)**0.5;
+	};
+	this.angle = function(v) {
+	  let a = Math.atan((v.y - this.y) / (this.x - v.x))
+	  if (this.x < v.x) {
+	    a += Math.PI
+	  } else if (v.y < this.y) {
+	    a += 2 * Math.PI
+	  }
+	  return a
+	}
+	this.normalize = function(s) {
+	  if (!s) {s = 1;};
+	  return this.mult(1/this.mag()).mult(s);
+	};
+	this.transform = function(matrix) {
+	  return new Vector2(this.x*matrix.a + this.y*matrix.b, this.x*matrix.c + this.y*matrix.d);
+	};
+	this.size = function() {
+	  return this.transform(flipVert).mult(unit);
+	};
+	this.pix = function() {
+	  return this.size().add(center);
+	};
+	this.units = function() {
+	  return this.add(center.mult(-1)).mult(1/unit).transform(flipVert);
+	};
+	this.draw = function(ctx, fv, max) {
+	  if (!max) {max = vectorSpacing;}
+	  var sv = this.normalize(3); // used to draw the arrowhead.
+	  var tv = this.normalize(vectorSpacing*this.mag()/max).size();
+	  if (fv) {
+	    fv = fv.pix();
+	  } else {
+	    fv = center;
+	  }
+	  tv = tv.add(fv);
+	  drawLine(ctx, fv, tv, '#000000');
+	  drawLine(ctx, tv, {'x': tv.x - sv.x + sv.y, 'y': tv.y + sv.x + sv.y}, '#000000');
+	  drawLine(ctx, tv, {'x': tv.x - sv.x - sv.y, 'y': tv.y - sv.x + sv.y}, '#000000');
+	};
+      };
+
+      // set vanish
+      const origin = new Vector2(0, 0);
+      const center = new Vector2(canvasWidth/2, canvasHeight/2)
+      let vanish = center.copy()
+      const encircleVanish = () => {
+	grid.beginPath()
+	grid.arc(vanish.x, vanish.y, 5, 0, 2 * Math.PI)
+	grid.stroke()
+      }
+
+      // draw cursor for typing
+      const drawCursor = () => {
+	if (isTyping) {
+	  clearCanvas(grid)
+	  grids[currentGrid](cells)
+	  grid.fillRect(
+	    last.x, 
+	    last.y - typeface.height,
+	    typeface.width,
+	    typeface.height
+	  )
+	}
+      }
+
+      // Draw Square Grid
+      const vert = (x, color) => {drawLine(grid, new Vector2(x, 0), new Vector2(x, canvasHeight), color);};
+      const horiz = (y, color) => {drawLine(grid, new Vector2(0, y), new Vector2(canvasWidth, y), color);};
+      const getUnit = (z) => {return Math.min(center.x, center.y) / z;};
+      let unit = getUnit(cells / 2);
+      let domain = new Vector2(Math.floor(2 * center.x / unit),
+	Math.floor(2 * center.y / unit));
+      const squareGrid = function(u) {
+	clearCanvas(grid)
+	encircleVanish()
+	if (!u) {u = unit / 2;} else {unit = getUnit(u / 2);}
+	let c, v;
+	for (let i = 0; i < 4; i++){
+	  c = [center.x, center.y][Math.floor(i/2)];
+	  v = [vert, horiz][Math.floor(i/2)]; 
+	  for (let x = unit; x < c; x += unit) {
+	    v(c + (-1)**i*x, grid.strokeStyle);
+	  }
+	  v(c, grid.strokeStyle)
+	}
+      }
+
+      const dotsGrid = (u) => {
+	clearCanvas(grid)
+	encircleVanish()
+	if (!u) {u = unit / 2;} else {unit = getUnit(u / 2);}
+	const left = center.x - Math.floor(2 * center.x / unit) * unit
+	const point = new Vector2(
+	  left,
+	  center.y - Math.floor(2 * center.y / unit) * unit
+	)
+	while (point.y <= canvasHeight) {
+	  while (point.x <= canvasWidth) {
+	    grid.beginPath()
+	    grid.arc(point.x, point.y, grid.lineWidth / 2, 0, 2 * Math.PI)
+	    grid.stroke()
+	    point.x += unit
+	  }
+	  point.x = left
+	  point.y += unit
+	}
+      }
+      
+      // Draw Hexagonal Grid
+      const hexTile = function(length, x, y) {
+	let points = [
+	  new Vector2(x, y),
+	  new Vector2(x + length/2, y + length*Math.sqrt(3)/2),
+	  new Vector2(x, y + length*Math.sqrt(3)),
+	  new Vector2(x + length*3/2, y + length*Math.sqrt(3)/2),
+	  new Vector2(x + 2*length, y + length*Math.sqrt(3)),
+	  new Vector2(x + 2*length, y),
+	  new Vector2(x + 3*length, y)
+	];
+	grid.beginPath();
+	grid.moveTo(points[0].x, points[0].y);
+	grid.lineTo(points[1].x, points[1].y);
+	grid.lineTo(points[2].x, points[2].y);
+	grid.moveTo(points[1].x, points[1].y);
+	grid.lineTo(points[3].x, points[3].y);
+	grid.lineTo(points[4].x, points[4].y);
+	grid.moveTo(points[3].x, points[3].y);
+	grid.lineTo(points[5].x, points[5].y);
+	grid.lineTo(points[6].x, points[6].y);
+	grid.stroke();
+      };
+
+      const hexGrid = function(u) {
+	if (!u) {u = unit / 2;} else {unit = getUnit(u / 2);}
+	sideLength = unit/Math.sqrt(3);
+	dims = {x: sideLength*3, y: sideLength*Math.sqrt(3)};
+	clearCanvas(grid)
+	encircleVanish()
+	if (!u) {u = unit / 2;} else {unit = getUnit(u / 2);}
+	const left = center.x - Math.ceil(center.x/dims.x)*dims.x - sideLength; 
+	const cursor = {
+	  x: left,
+	  y: center.y - Math.ceil(center.y/dims.y)*dims.y
+	}
+	while (cursor.y/2 < center.y) {
+	  while (cursor.x/2 < center.x) {
+	    hexTile(sideLength, cursor.x, cursor.y);
+	    cursor.x += dims.x;
+	  }
+	  cursor.y += dims.y;
+	  cursor.x = left;
+	}
+      };
+
+      // Draw Triangular Grid
+      const triangleTile = function(length, x, y) {
+	let points = [
+	  new Vector2(x, y),
+	  new Vector2(x + length, y),
+	  new Vector2(x + length/2, y + length*Math.sqrt(3)/2),
+	  new Vector2(x + length, y + length*Math.sqrt(3)),
+	  new Vector2(x, y + length*Math.sqrt(3)),
+	  new Vector2(x + length*3/2, y + length*Math.sqrt(3)/2)
+	];
+	grid.beginPath();
+	grid.moveTo(points[0].x, points[0].y);
+	grid.lineTo(points[1].x, points[1].y);
+	grid.lineTo(points[2].x, points[2].y);
+	grid.lineTo(points[3].x, points[3].y);
+	grid.lineTo(points[4].x, points[4].y);
+	grid.moveTo(points[3].x, points[3].y);
+	grid.lineTo(points[5].x, points[5].y);
+	grid.lineTo(points[2].x, points[2].y);
+	grid.moveTo(points[5].x, points[5].y);
+	grid.lineTo(points[1].x, points[1].y);
+	grid.stroke();
+      };
+
+      const triangleGrid = function(u) {
+	if (!u) {u = unit / 2;} else {unit = getUnit(u / 2);}
+	sideLength = unit * 2/Math.sqrt(3);
+	dims = {x: sideLength, y: sideLength*Math.sqrt(3)};
+	clearCanvas(grid)
+	encircleVanish()
+	const left = center.x - Math.ceil(center.x/dims.x)*dims.x - sideLength; 
+	const cursor = {
+	  x: left,
+	  y: center.y - Math.ceil(center.y/dims.y)*dims.y
+	}
+	while (cursor.y/2 < center.y) {
+	  while (cursor.x/2 < center.x) {
+	    triangleTile(sideLength, cursor.x, cursor.y);
+	    cursor.x += dims.x;
+	  }
+	  cursor.y += dims.y;
+	  cursor.x = left;
+	}
+      };
+      
+      [
+	() => {},
+	triangleGrid,
+	squareGrid,
+	hexGrid,
+	dotsGrid
+      ][currentGrid](cells)
+
+      // Lined grid
+      const linesGrid = (u) => {
+	unit = getUnit(u / 2) || unit
+	let y = center.y % (unit / 2)
+	clearCanvas(grid)
+	encircleVanish()
+	while (y <= canvasHeight) {
+	  drawLine(
+	    grid,
+	    new Vector2(0, y),
+	    new Vector2(canvasWidth, y),
+	    grid.strokeStyle)
+	  y += unit
+	}
+      }
+
+      const grids = [
+	() => {},
+	triangleGrid,
+	squareGrid,
+	hexGrid,
+	dotsGrid,
+	linesGrid
+      ]
+
+      // Custom pattern generation
+      const drawArc = (ctx=pen, center=center, radius=(unit / 2), fa=0, ta=Math.PI*2, chirality=1) => {
+	if (chirality < 1) {[fa, ta] = [Math.PI - ta, Math.PI - fa]}
+	ctx.beginPath()
+	ctx.arc(center.x, center.y, radius, fa, ta)
+	ctx.stroke()
+      }
+
+      const concentric = (ctx=pen, center=center, radius=(unit / 2), width=unit, fa=0, ta=Math.PI*2, count=1, chirality=1) => {
+	while (count > 0) {
+	  drawArc(ctx, center, radius, fa, ta, chirality)
+	  radius += width
+	  count--
+	}
+      }
+      
+      const labrynth = (center, width=(unit / 2), chirality=1) => {
+	drawLine(
+	  pen,
+	  new Vector2(center.x - chirality * width / 2, center.y),
+	  new Vector2(center.x - chirality * width / 2, center.y + width * 4),
+	  pen.strokeStyle
+	)
+	drawLine(
+	  pen,
+	  new Vector2(center.x - chirality * width * 2.5, center.y + width * 2),
+	  new Vector2(center.x + chirality * width * 1.5, center.y + width * 2),
+	  pen.strokeStyle
+	)
+	const corners = [
+	  center.add(new Vector2(chirality * width * 1.5, 0)),
+	  center.add(new Vector2(chirality * width * -2.5, 0)),
+	  center.add(new Vector2(chirality * width * -2.5, width * 4)),
+	  center.add(new Vector2(chirality * width * 1.5, width * 4)),
+	]
+	chiralIndex = Math.max(0, chirality)
+	drawArc(pen, [corners[1], corners[0]][chiralIndex], width, 0, Math.PI)
+	concentric(pen, [corners[1], corners[0]][chiralIndex], width * 2, width, 0, Math.PI / 2, [4, 5][chiralIndex])
+	concentric(pen, center, width / 2, width, Math.PI, 0, 8)
+	drawArc(pen, [corners[0], corners[1]][chiralIndex], width, 0, Math.PI)
+	concentric(pen, [corners[0], corners[1]][chiralIndex], width * 2, width, Math.PI / 2, Math.PI, [5, 4][chiralIndex])
+	drawArc(pen, [corners[3], corners[2]][chiralIndex], width, Math.PI * 1.5, Math.PI / 2)
+	drawArc(pen, [corners[2], corners[3]][chiralIndex], width, Math.PI / 2, Math.PI * 1.5)
+	drawArc(pen, corners[3], width * 2, Math.PI / 2, Math.PI, chirality)
+      }
+
+      const weekdays = [
+	'Sunday',
+	'Monday',
+	'Tuesday',
+	'Wednesday',
+	'Thursday',
+	'Friday',
+	'Saturday'
+      ]
+
+      const drawPlanner = () => {
+
+	// Draw lines for planner	
+	pen.font = `16px ${typeface.font}`
+	pen.lineWidth = 1
+	const border = Math.min(canvasWidth, canvasHeight) / 36
+	const cell = new Vector2(
+	  (canvasWidth - (2 * border)) / 7,
+	  (canvasHeight - (2* border)) / 18
+	)
+	const head = new Vector2(
+	  border,
+	  border
+	)
+	const drawHorizontal = () => {
+	  drawLine(
+	    pen,
+	    head,
+	    new Vector2(
+	      canvasWidth - border, 
+	      head.y
+	    ),
+	    pen.strokeStyle
+	  )
+	}
+	const drawVertical = () => {
+	  drawLine(
+	    pen,
+	    head,
+	    new Vector2(
+	      head.x, 
+	      canvasHeight - border
+	    ),
+	    pen.strokeStyle
+	  )
+	}
+	while (head.y < canvasHeight) {
+	  drawHorizontal()
+	  head.y += cell.y
+	}
+	head.y = border
+	let hour
+	let weekday = 0
+	while (head.x <= canvasWidth) {
+	  drawVertical()
+	  pen.clearRect(
+	    head.x + (border / 2),
+	    0,
+	    cell.x - border,
+	    canvasHeight
+	  )
+	  hour = 6
+	  while (head.y <= canvasHeight) {
+	    pen.clearRect(
+	      head.x - 12, 
+	      head.y - 10, 
+	      24.8, 
+	      20
+	    )
+	    pen.fillText(
+	      `${(hour < 10 ? '0' : '')}${hour}`, 
+	      head.x - 10, 
+	      head.y + 6
+	    )
+	    if (hour % 6 === 0) {
+	      pen.font = `12px ${typeface.font}`
+	      pen.fillText(
+		weekdays[weekday % 7], 
+		head.x + (cell.x / 2) - (weekdays[weekday % 7].length * 3.5), 
+		head.y + 4
+	      )
+	      pen.font = `16px ${typeface.font}`
+ 	    }
+	    hour += 2
+	    head.y += cell.y * 2
+	  }
+	  head.x += cell.x
+	  head.y = border
+	  weekday += 1
+	}
+	/* 
+ 	   
+ 	   // Print text onto planner
+ 	   
+ 	   head.set(
+ 	   border + (cell.x / 2), 
+ 	   101
+ 	   )
+ 	   for (let dayName of weekdays) {
+ 	   pen.fillText(dayName, head.x - (dayName.length * 6.2), head.y)
+ 	   head.x += cell.x
+ 	   }
+ 	   // date numbers
+ 	   let thisDate = 1
+ 	   head.set(
+ 	   36 + (dayNumber * cell.x), 
+ 	   136
+ 	   )
+ 	   while (thisDate <= theseDays) {
+ 	   let halfSpace = thisDate < 10 ? 6.2 : 0
+ 	   pen.fillText(thisDate, head.x + halfSpace, head.y)
+ 	   thisDate += 1
+ 	   dayNumber += 1
+ 	   if (dayNumber % 7 === 0) {
+ 	   head.set(
+ 	   36,
+ 	   head.y + cell.y
+ 	   )
+ 	   } else {
+ 	   head.x += cell.x
+ 	   }
+ 	   } */
+ 	pen.font = `${typeface.height}px ${typeface.font}`
+	pen.lineWidth = currentPenWidth
+      }
+
+      // Draw calendar for current month
+      const drawCalendar = () => {
+	const today = new Date()
+	const hasLeapDay = (dt) => {
+	  if (dt.getMonth() === 1) {
+	    const year = dt.getFullYear()
+	    if (year % 400 === 0) {
+	      return 1
+	    } else if (year % 100 === 0) {
+	      return 0
+	    } else if (year % 4 === 0) {
+	      return 1
+	    } else {
+	      return 0
+	    }
+	  } else {
+	    return 0
+	  }
+	} 
+	const months = [
+	  { name: 'January', days: 31 },
+	  { name: 'February', days: 28 },
+	  { name: 'March', days: 31 },
+	  { name: 'April', days: 30 },
+	  { name: 'May', days: 31 },
+	  { name: 'June', days: 30 },
+	  { name: 'July', days: 31 },
+	  { name: 'August', days: 31 },
+	  { name: 'September', days: 30 },
+	  { name: 'October', days: 31 },
+	  { name: 'November', days: 30 },
+	  { name: 'December', days: 31 }
+	]
+	const theseDays = months[today.getMonth()].days + hasLeapDay(today)
+
+	// Draw lines for calendar
+	pen.lineWidth = 2
+	const border = Math.min(canvasWidth, canvasHeight) / 30
+	let dayNumber = 1 + today.getDay() - (today.getDate() % 7)
+	const rows = dayNumber + theseDays < 36 ? 5 : 6
+	const cell = new Vector2(
+	  (canvasWidth - (2 * border)) / 7,
+	  (canvasHeight - ( 110 + border)) / rows
+	)
+	const head = new Vector2(
+	  border,
+	  110
+	)
+	const drawHorizontal = () => {
+	  drawLine(
+	    pen,
+	    head,
+	    new Vector2(
+	      canvasWidth - border, 
+	      head.y
+	    ),
+	    pen.strokeStyle
+	  )
+	}
+	while (head.y < canvasHeight) {
+	  drawHorizontal()
+	  head.y += cell.y
+	}  
+	head.y = 76
+	drawHorizontal()
+	while (head.x < canvasWidth) {
+	  drawLine(
+	    pen,
+	    head,
+	    new Vector2(
+	      head.x, 
+	      canvasHeight - border
+	    ),
+	    pen.strokeStyle
+	  )
+	  head.x += cell.x
+	}
+	
+	// Print text onto calendar
+	pen.font = `40px ${typeface.font}`
+	pen.fillText(`${months[today.getMonth()].name}, ${today.getFullYear()}`, 42, 50)
+	// day names
+	pen.font = `20px ${typeface.font}`
+	head.set(
+	  border + (cell.x / 2), 
+	  101
+	)
+	for (let dayName of weekdays) {
+	  pen.fillText(dayName, head.x - (dayName.length * 5.8), head.y)
+	  head.x += cell.x
+	}
+	// date numbers
+	let thisDate = 1
+	head.set(
+	  36 + (dayNumber * cell.x), 
+	  136
+	)
+	while (thisDate <= theseDays) {
+	  let halfSpace = thisDate < 10 ? 6.2 : 0
+	  pen.fillText(thisDate, head.x + halfSpace, head.y)
+	  thisDate += 1
+	  dayNumber += 1
+	  if (dayNumber % 7 === 0) {
+	    head.set(
+	      36,
+	      head.y + cell.y
+	    )
+	  } else {
+	    head.x += cell.x
+	  }
+	}
+	pen.font = `${typeface.height}px ${typeface.font}`
+	pen.lineWidth = currentPenWidth
+      }
+      
+      // adjust units, cells, grids, etc
+      const setCells = (newCells) => {
+	cells = newCells
+	unit = getUnit(cells / 2)
+	clearCanvas(grid)
+	grids[currentGrid](cells)
+      }
+
+      const setUnit = (newUnit) => {
+	unit = newUnit
+	cells = 2 * Math.min(center.x, center.y) / unit
+	clearCanvas(grid)
+	grids[currentGrid](cells)
+      }
+
+      const setPenWidth = (newPenWidth) => {
+	currentPenWidth = newPenWidth
+	pen.lineWidth = currentPenWidth
+	adjustTypeface(pen.lineWidth)
+	pen.font = `${typeface.height}px ${typeface.font}`
+	eraser = currentEraseRadius = 10 + pen.lineWidth
+      }
+
+      const setColor = (color, context=pen) => {
+	context.strokeStyle = color
+	context.fillStyle = color
+	if (context === grid) {
+	  currentGridColor = color
+	  clearCanvas(grid)
+	  grids[currentGrid](cells)
+	} else if (context === background) {
+	  console.log('back it up')
+	  currentBackgroundFillStyle = background.fillStyle = getRGBA(currentBackgroundOpacity, color)
+	  setBackground(currentBackgroundOpacity)
+	}
+      }
+
+      const setAngle = (degrees) => {
+	currentAngle = degrees * Math.PI / 180
+      }
+
+      const addAngle = (degrees) => {
+	currentAngle = currentAngle + (degrees * Math.PI / 180)
+      }
+
+      const getAngle = () => console.log(`current angle: ${currentAngle * 180 / Math.PI}`)
+
+      // Plot
+      const plot = (f=null, options={}) => {
+	const {
+	  origin=vanish,
+	  context=pen,
+	  axes=true,
+	  labels=true,
+	  increment=1,
+	  gridlines=false,
+	  unitLength=unit,
+	  bounds={
+	    x: [-origin.x / unit, (canvasWidth - origin.x) / unit],
+	    y: [(origin.y - canvasHeight) / unit, origin.y / unit]
+	  }
+	} = options
+	const color = options.color || context.strokeStyle
+	const xLength = options.xLength || unitLength
+	const yLength = options.yLength || unitLength
+	const xIncrement = options.xIncrement || increment
+	const yIncrement = options.yIncrement || increment
+	const project = (vector, x, y) => {
+	  vector.set(
+	    origin.x + (x * xLength), 
+	    origin.y - (y * yLength)
+	  )
+	}
+
+	const lowY = origin.y - (bounds.y[1] * yLength)
+	const highY = origin.y - (bounds.y[0] * yLength)
+	if (axes) {
+	  context.lineWidth = 1
+	  drawLine(
+	    context,
+	    new Vector2(
+	      origin.x + (bounds.x[0] * xLength),
+	      origin.y
+	    ),
+	    new Vector2(
+	      origin.x + (bounds.x[1] * xLength),
+	      origin.y
+	    ),
+	    context.strokeStyle
+	  )
+	  drawLine(
+	    context,
+	    new Vector2(
+	      origin.x,
+	      lowY
+	    ),
+	    new Vector2(
+	      origin.x,
+	      highY
+	    ),
+	    context.strokeStyle
+	  )
+	  context.lineWidth = currentPenWidth
+	}
+	if (labels || gridlines) {
+	  context.font = `20px ${typeface.font}`
+	  context.lineWidth = 1
+	  const head = origin.copy()
+	  head.x += Math.ceil(bounds.x[0]) * xLength
+	  let label = Math.ceil(bounds.x[0])
+	  let textOffset = new Vector2(-6.2, 30)
+	  while (head.x <= bounds.x[1] * xLength + origin.x + currentPenWidth) {
+	    if (gridlines && label % xIncrement === 0) {
+	      drawLine(
+		pen,
+		new Vector2(
+		  head.x,
+		  -bounds.y[0] * yLength + origin.y
+		),
+		new Vector2(
+		  head.x, 
+		  -bounds.y[1] * yLength + origin.y
+		),
+		context.strokeStyle
+	      )
+	    }
+	    if (labels && label % xIncrement === 0) {
+	      context.clearRect(
+		head.x + textOffset.x, 
+		head.y + textOffset.y - 17, 
+		12.4, 
+		20
+	      )
+	      context.fillText(
+		label, 
+		head.x + textOffset.x + (label < 0 ? -10 : 0), 
+		head.y + textOffset.y
+	      )
+	    }
+	    label += 1
+	    head.x += xLength
+	  }
+	  head.x = origin.x
+	  head.y -= Math.ceil(bounds.y[0]) * yLength
+	  label = Math.ceil(bounds.y[0])
+	  textOffset.set(-20, 6)
+	  while (head.y >= origin.y - currentPenWidth - bounds.y[1] * yLength) {
+	    if (gridlines && label % yIncrement === 0) {
+	      drawLine(
+		pen,
+		new Vector2(
+		  bounds.x[0] * xLength + origin.x,
+		  head.y
+		),
+		new Vector2(
+		  bounds.x[1] * xLength + origin.x, 
+		  head.y
+		),
+		context.strokeStyle
+	      )
+	    }
+	    if (labels && label % yIncrement === 0) {
+	      context.clearRect(
+		head.x + textOffset.x - 2 - (label < 0 ? 12 : 0), 
+		head.y + textOffset.y - 16, 
+		16 + (label < 0 ? 14 : 0), 
+		20
+	      )
+	      context.fillText(
+		label, 
+		head.x + textOffset.x - (label < 0 ? 12 : 0), 
+		head.y + textOffset.y
+	      )
+	    }
+	    label += 1
+	    head.y -= yLength
+	  }
+	  context.font = `${typeface.height}px ${typeface.font}`
+	  context.lineWidth = currentPenWidth
+	}
+
+	if (f !== null) {
+	  let x = bounds.x[0]
+	  let y = f(x)
+	  let next = last.copy()
+	
+	  while (x <= bounds.x[1]) {
+	    project(last, x, y)
+	    x += 1 / xLength
+	    y = f(x)
+	    project(next, x, y)
+	    if ((lowY < last.y && last.y < highY) || (lowY < next.y && next.y < highY)) {
+	      let ratio = 1
+	      if (last.y < lowY) {
+		ratio = (next.y - lowY) / (next.y - last.y)
+		last.set(
+		  next.x - (ratio / xLength),
+		  lowY
+		)
+	      } else if (last.y > highY) {
+		ratio = (highY - next.y) / (last.y - next.y)
+		last.set(
+		  next.x - (ratio / xLength),
+		  highY
+		)
+	      } else if (next.y < lowY) {
+		ratio = (last.y - lowY) / (last.y - next.y)
+		next.set(
+		  last.x + (ratio / xLength),
+		  lowY
+		)
+	      } else if (next.y > highY) {
+		ratio = (highY - last.y) / (next.y - last.y)
+		next.set(
+		  last.x + (ratio / xLength),
+		  highY
+		)
+	      }
+	      drawLine(
+		context,
+		last,
+		next,
+		color
+	      )
+	    }
+	  }
+	}
+      }
+
+      // Typing
+      function typingFunction (e) {
+	mapKeyPressToActualCharacter(e.shiftKey, e.keyCode)
+      }
+
+      function mapKeyPressToActualCharacter(isShiftKey, characterCode) {
+        if (characterCode === 27
+          || characterCode === 8
+          || characterCode === 9
+          || characterCode === 20
+          || characterCode === 16
+          || characterCode === 17
+          || characterCode === 13
+          || characterCode === 18) {
+          return false;
+        }
+
+        if (typeof isShiftKey != "boolean" || typeof characterCode != "number") {
+          return false;
+        }
+
+        var characterMap = {};
+        characterMap[126] = "~";
+        characterMap[33] = "!";
+        characterMap[64] = "@";
+        characterMap[35] = "#";
+        characterMap[36] = "$";
+        characterMap[37] = "%";
+        characterMap[94] = "^";
+        characterMap[38] = "&";
+        characterMap[42] = "*";
+        characterMap[40] = "(";
+        characterMap[41] = ")";
+        characterMap[95] = "_";
+        characterMap[43] = "+";
+        characterMap[123] = "{";
+        characterMap[125] = "}";
+	characterMap[91] = "[";
+        characterMap[92] = "\\";
+	characterMap[124] = "|";
+        characterMap[58] = ":";
+        characterMap[34] = "\"";
+        characterMap[60] = "<";
+        characterMap[62] = ">";
+        characterMap[63] = "?";
+        characterMap[32] = " ";
+
+        var character = "";
+        if (isShiftKey) {
+          if (characterCode >= 65 && characterCode <= 90) {
+            character = String.fromCharCode(characterCode);
+          } else {
+            character = characterMap[characterCode];
+          }
+        } else {
+          if (characterCode >= 65 && characterCode <= 90) {
+            character = String.fromCharCode(characterCode).toLowerCase();
+	  } else {
+            character = String.fromCharCode(characterCode);
+          }
+        }
+
+	pen.fillText(character, last.x, last.y)
+	last.x += typeface.width
+	drawCursor()
+      }
+      
+      // Draw
+      pen.lineJoin = 'round'
+      pen.lineCap = 'round'
+
+      let bold = false
+      let isDrawing = false
+      let isErasing = false
+      let isBoxErasing = false
+      let isDrawingRectangle = false
+      let isDrawingEllipse = false
+      let isDrawingLine = false
+      let isTyping = false
+      let constraint = 'none'
+      let currentMouse
+      const typeface = {}
+      typeface.font = 'Courier New'
+      const adjustTypeface = (lineWidth) => {
+	typeface.height = lineWidth * 10
+	typeface.width = typeface.height * 0.62
+	typeface.lineSpacing = typeface.height * 1.2
+      }
+      adjustTypeface(pen.lineWidth)
+      const down = origin.copy()
+      const last = origin.copy()
+      const offset = origin.copy()
+      
+      pen.font = `${typeface.height}px ${typeface.font}`
+
+      const constrainLine = (a, b, c) => {
+	const slope = {
+	  b: (b.y - a.y) / (b.x - a.x),
+	  c: (b.x - a.x) / (b.y - a.y) // the slope of the second line is the negative inverse of the first, but this is left positive to simplify the last equation.
+	}
+	const xOffset = ((c.y - a.y) + ((c.x - a.x) * slope.c)) / (slope.b + slope.c)
+	return new Vector2(
+	  xOffset + a.x,
+	  (xOffset * slope.b) + a.y
+	)
+      }
+
+      const constrainArc = (a, b, c) => {
+	const scale = a.distance(b)/a.distance(c)
+	return new Vector2(
+	  (c.x - a.x) * scale + a.x,
+ 	  (c.y - a.y) * scale + a.y
+	)
+      }
+      
+      const next = {}
+      const draw = (e) => {
+	if (!isDrawing) return;
+	[offset.x, offset.y] = [e.offsetX, e.offsetY]
+	
+	next.none = offset,
+	next.vanishing = constrainLine(vanish, last, offset),
+	next.arc = constrainArc(vanish, last, offset),
+	next.horizontal = new Vector2(offset.x, down.y),
+	next.vertical = new Vector2(down.x, offset.y),
+	next.parallel = constrainLine(
+	  last.add(new Vector2(1, -Math.tan(currentAngle))),
+	  last,
+	  offset
+	)
+	
+	pen.beginPath();
+	pen.moveTo(last.x, last.y);
+	pen.lineTo(next[constraint].x, next[constraint].y)
+	pen.stroke();
+	[last.x, last.y] = [next[constraint].x, next[constraint].y]
+      };
+
+      const erase = (e) => {
+	if (!isErasing || !mouseIsDown) return;
+	pen.save()
+	pen.moveTo(e.offsetX, e.offsetY)
+	pen.arc(e.offsetX, e.offsetY, eraser, 0, Math.PI*2, 2)
+	pen.clip()
+	clear()
+	pen.restore()
+	//pen.clearRect(last.x, last.y, e.offsetX - last.x, e.offsetY - last.y);
+      }
+
+      const drawBoxEraser = (e) => {
+	if (mouseIsDown) {
+	  clearCanvas(grid)
+	  grids[currentGrid](cells)
+	  grid.fillRect(last.x, last.y, e.offsetX - last.x, e.offsetY - last.y);
+	}
+      }
+
+      const drawRectangle = (e) => {
+	if (mouseIsDown) {
+	  clearCanvas(grid)
+	  grids[currentGrid](cells)
+	  grid.strokeRect(last.x, last.y, e.offsetX - last.x, e.offsetY - last.y);
+	}
+      }
+
+      const drawEllipse = (e, context) => {
+	const horizontal = (e.offsetX - down.x) / (2 * unit)
+	const vertical = (e.offsetY - down.y) / (2 * unit)
+	const origin = new Vector2(
+	  down.x + (unit * horizontal), 
+	  down.y + (unit * vertical)
+	)
+	const bounds = {
+	  x: [
+	    (Math.min(down.x, e.offsetX) - origin.x) / unit, 
+	    (Math.max(down.x, e.offsetX) - origin.x) / unit
+	  ],
+	  y: [
+	    (Math.min(down.y, e.offsetY) - origin.y) / unit, 
+	    (Math.max(down.y, e.offsetY) - origin.y) / unit
+	  ]
+	}
+	plot((x) => Math.sqrt((1 - (Math.pow(x, 2) / Math.pow(horizontal, 2))) * Math.pow(vertical, 2)) || 0, {
+	  axes: false,
+	  labels: false,
+	  origin,
+	  bounds,
+	  context
+	})
+	plot((x) => -Math.sqrt((1 - (Math.pow(x, 2) / Math.pow(horizontal, 2))) * Math.pow(vertical, 2)) || 0, {
+	  axes: false,
+	  labels: false,
+	  origin,
+	  bounds,
+	  context
+	})
+      }
+      
+      
+      const mouseLine = (e) => {
+	if (mouseIsDown) {
+	  clearCanvas(grid)
+	  grids[currentGrid](cells)
+	  // grid.strokeRect(last.x, last.y, e.offsetX - last.x, e.offsetY - last.y)
+	  drawLine(
+	    grid,
+	    last,
+	    new Vector2(e.offsetX, e.offsetY),
+	    grid.strokeStyle
+	  )
+	}
+      }
+
+      let mouseIsDown = false;
+      penCanvas.addEventListener('mousedown', (e) => {
+	mouseIsDown = true;
+	if (
+	  !isErasing 
+	    && !isDrawingRectangle 
+	    && !isDrawingEllipse 
+	    && !isDrawingLine 
+	    && !isTyping
+	) {
+	  isDrawing = true;
+	}
+	//[offset.x, offset.y] = [e.offsetX, e.offsetY]
+	//[last.x, last.y] = [next[constraint].x, next[constraint].y];
+	[down.x, down.y] = [last.x, last.y] = [e.offsetX, e.offsetY]
+	if (isTyping) {
+	  drawCursor()
+	}
+      })
+
+      const clear = () => {
+	pen.clearRect(0, 0, canvasWidth, canvasHeight); 
+      }
+
+      penCanvas.addEventListener('mousemove', (e) => {
+	currentMouse = e
+	if (isErasing) {
+	  isDrawing=false
+	  erase(e)
+	} else if (isBoxErasing) {
+	  isDrawing=false
+	  drawBoxEraser(e)
+	} else if (isDrawingRectangle) {
+	  isDrawing=false
+	  drawRectangle(e)
+	} else if (isDrawingEllipse) {
+	  isDrawing=false
+	  if (mouseIsDown) {
+	    clearCanvas(grid)
+	    grids[currentGrid](cells)
+	    drawEllipse(e, grid)
+	  }
+	} else if (isDrawingLine) {
+	  isDrawing=false
+	  mouseLine(e)
+	} else {
+	  draw(e)
+	}
+      })
+
+      penCanvas.addEventListener('mouseup', (event) => {
+	mouseIsDown = false;
+	isDrawing = false
+	let mouse = new Vector2(currentMouse.offsetX, currentMouse.offsetY)
+	let width = mouse.x - last.x
+	let height = mouse.y - last.y
+	if (isErasing) {
+	  background.clearRect(0, 0, canvasWidth, canvasHeight);
+	  background.fillRect(0, 0, canvasWidth, canvasHeight);
+	  //erase(event);
+	} else if (isBoxErasing) {
+	  clearCanvas(grid)
+	  grids[currentGrid](cells)
+	  pen.clearRect(last.x, last.y, width, height)
+	} else if (isDrawingRectangle) {
+	  clearCanvas(grid)
+	  grids[currentGrid](cells)
+	  pen.strokeRect(last.x, last.y, width, height)
+	  measurements.width = Math.abs(width / unit)
+	  measurements.height = Math.abs(height / unit)
+	  measurements.area = measurements.width * measurements.height
+	  console.log(`sides: ${measurements.width.toFixed(2)} x ${measurements.height.toFixed(2)}\narea: ${measurements.area.toFixed(2)}`)
+	} else if (isDrawingEllipse) {
+	  clearCanvas(grid)
+	  grids[currentGrid](cells)
+	  // DRAW ELLIPSE ON PEN LAYER AND LOG DIMENSIONS
+	  drawEllipse(event, pen)
+	  measurements.majorAxis = Math.max(
+	    Math.abs(down.x - currentMouse.offsetX),
+	    Math.abs(down.y - currentMouse.offsetY)
+	  ) / (2 * unit)
+	  measurements.minorAxis = Math.min(
+	    Math.abs(down.x - currentMouse.offsetX),
+	    Math.abs(down.y - currentMouse.offsetY)
+	  ) / (2 * unit)
+	  measurements.area = Math.PI * measurements.majorAxis * measurements.minorAxis
+	  console.log(`major axis: ${measurements.majorAxis.toFixed(2)}\nminor axis: ${measurements.minorAxis.toFixed(2)}\narea: ${measurements.area.toFixed(2)}`)
+	} else if (isDrawingLine) {
+	  clearCanvas(grid)
+	  grids[currentGrid](cells)
+	  // pen.strokeRect(last.x, last.y, currentMouse.offsetX - last.x, currentMouse.offsetY - last.y)
+	  drawLine(
+	    pen,
+	    last,
+	    mouse,
+	    pen.strokeStyle
+	  )
+	  measurements.distance = measurements.line = last.distance(
+	    new Vector2(
+	      currentMouse.offsetX,
+	      currentMouse.offsetY
+	    )
+	  ) / unit
+	  currentAngle = mouse.angle(last)
+	  console.log(`line length: ${measurements.line.toFixed(2)}`)
+	} else if (constraint === 'arc') {
+	  measurements.distance = measurements.radius = down.distance(vanish) / unit
+	  measurements.clockwise = (down.angle(vanish) - mouse.angle(vanish)) * 180 / Math.PI
+	  measurements.counterClockwise = (mouse.angle(vanish) - down.angle(vanish)) * 180 / Math.PI
+	  if (mouse.angle(vanish) > down.angle(vanish)) {
+	    measurements.clockwise += 360
+	  } else {
+	    measurements.counterClockwise += 360
+	  }
+	  console.log(`radius: ${measurements.radius.toFixed(2)}\nclockwise angle: ${measurements.clockwise.toFixed(0)}\ncounter-clockwise angle: ${measurements.counterClockwise.toFixed(0)}`)
+	} else if (constraint !== 'none') {
+	  measurements.distance = measurements[constraint] = next[constraint].distance(down) / unit
+	  console.log(`${constraint}: ${measurements.distance.toFixed(2)}`)
+	}
+      })
+
+      penCanvas.addEventListener('mouseout', () => {
+	isDrawing = false
+	mouseIsDown = false
+      })
+
+      penCanvas.addEventListener('contextmenu', (e) => {
+	isDrawing = false
+	mouseIsDown = false
+      })
+
+      document.addEventListener('keypress', (event) => {
+	const keyName = event.key;
+	const applyColor = (color) => {
+	  [() => {pen.fillStyle = pen.strokeStyle = color;},
+	    () => {
+	      currentBackgroundFillStyle = color;
+	      setBackground(currentBackgroundOpacity)
+	    }][event.shiftKey]
+	}
+
+	if (isTyping) {
+	  typingFunction(event)
+	}
+	
+	switch(keyName) {
+	case 'h':
+	  if (!isTyping) {
+	    alert('CONTROLS:\n\nShift: bold\nSpacebar: eraser\nz: box-eraser\nEscape: clear screen\n\nCOLORS:\nr, g, b: red, green, blue\nc, m, y, k: cyan, magenta, yellow, black\nw: white\n\nPEN SIZE:\n=: increase line-width\n-: decrease line-width\n\n')
+	    alert('IMAGE:\np: reset image\n\nBACKGROUND OPACITY:\n`: clear background\n1 - 9: 0.1 - 0.9 opacity\n0: full opacity\n\nGRIDS:\nt: triangle grid\ns: square grid\nx: hexagonal grid\nd: square dots grid\n;: lined grid\n\nGRID COLOR:\nj: toggle white/black\nn: cycle through colors\n\nSLIDESHOW:\n(set theme to slideshow)\n.: forward one slide\n,: back one slide')
+	    alert('CONSTRAINTS:\nUp: constrain to vertical line\nLeft: constrain to horizontal line\n/: constrain to parallel to line\nDown: constrain to vanishing point line\nRight: constrain to arc about vanishing point\nv: set vanishing point to mouse position\n\nTEXT:\na: enter text-mode\nesc: exit text-mode\n\nSHAPES\nq: draw rectangle\nl: draw line\ne: draw ellipse')
+	    alert(`QUERY PARAMETERS: \ntitle: ${document.title}\ntheme: ${initialTheme}\nimage: ${imageURL}\nscreen: ${canvasWidth} x ${canvasHeight}\npens: ${query.pens || 'none'}\npenColor: ${pen.strokeStyle}\npenWidth: ${pen.lineWidth}\ngridColor: ${grid.strokeStyle}\ngridWidth: ${grid.lineWidth}\nbackgroundOpacity: ${currentBackgroundOpacity}\nbackground: ${background.fillStyle}\ncells: ${cells}\nzoom: ${zoom}\ngridStyle: ${currentGrid}\neraseRadius: ${currentEraseRadius}`)
+	  }
+	  break;
+	case 'a':
+	  if (!isTyping) {
+	    isTyping = true;
+	    drawCursor()
+	  }
+	  break;
+	case ' ':
+	  event.preventDefault()
+	  if (!isTyping) {
+	    isErasing = true;
+	  }
+	  break;
+	case 'r':
+	  if (!isTyping) {
+	    pen.fillStyle = pen.strokeStyle = '#ff0000'
+	    console.log('red')
+	  }
+	  break;
+	case 'g':
+	  if (!isTyping) {
+	    pen.fillStyle = pen.strokeStyle = '#00ff00'
+	    console.log('green')
+	  }
+	  break;
+	case 'b':
+	  if (!isTyping) {
+	    pen.fillStyle = pen.strokeStyle = '#0000ff'
+	    console.log('blue')
+	  }
+	  break;
+	case 'c':
+	  if (!isTyping) {
+	    pen.fillStyle = pen.strokeStyle = '#00ffff'
+	    console.log('cyan')
+	  }
+	  break;
+	case 'm':
+	  if (!isTyping) {
+	    pen.fillStyle = pen.strokeStyle = '#ff00ff'
+	    console.log('magenta')
+	  }
+	  break;
+	case 'y':
+	  if (!isTyping) {
+	    pen.fillStyle = pen.strokeStyle = '#ffff00'
+	    console.log('yellow')
+	  }
+	  break;
+	case 'k':
+	  if (!isTyping) {
+	    pen.fillStyle = pen.strokeStyle = '#000000'
+	    console.log('black')
+	  }
+	  break;
+	case 'w':
+	  if (!isTyping) {
+	    pen.fillStyle = pen.strokeStyle = '#ffffff'
+	    console.log('white')
+	  }
+	  break;
+	case 't':
+	  if (!isTyping) {
+	    if (currentGrid === 1) {
+	      clearCanvas(grid)
+	      currentGrid = 0
+	    } else {
+	      triangleGrid(cells)
+	      currentGrid = 1
+	    }
+	  }
+	  break;
+	case 's':
+	  if (!isTyping) {
+	    if (currentGrid === 2) {
+	      clearCanvas(grid);
+	      currentGrid = 0;
+	    } else {
+	      squareGrid(cells);
+	      currentGrid = 2;
+	    }
+	  }
+	  break
+	case 'x':
+	  if (!isTyping) {
+	    if (currentGrid === 3) {
+	      clearCanvas(grid);
+	      currentGrid = 0;
+	    } else {
+	      hexGrid(cells);
+	      currentGrid = 3;
+	    }
+	  }
+	  break;
+	case 'd':
+	  if (!isTyping) {
+	    if (currentGrid === 4) {
+	      clearCanvas(grid);
+	      currentGrid = 0;
+	    } else {
+	      dotsGrid(cells);
+	      currentGrid = 4;
+	    }
+	  }
+	  break
+	case ';':
+	  if (!isTyping) {
+	    if (currentGrid === 5) {
+	      clearCanvas(grid);
+	      currentGrid = 0;
+	    } else {
+	      linesGrid(cells);
+	      currentGrid = 5;
+	    }
+	  }
+	  break
+	case 'j':
+	  if (!isTyping) {
+	    contrast++
+	      currentColors = [
+		['#000000', '#ffffff'],
+		['#ffffff', '#000000']
+	      ][contrast % 2]
+	    currentGridColor = currentColors[(gridContrast + 1) % 2]
+	    applyTheme(
+	      {
+		pen: {strokeStyle: currentColors[0], lineWidth: pen.lineWidth},
+		grid: {strokeStyle: (currentGridOpacity) => getRGBA(currentGridOpacity, currentGridColor), lineWidth: 2},
+		backgroundOpacity: currentBackgroundOpacity,
+		background: (alpha) => currentColors[1],
+		image: collections,
+		cells: cells,
+		initialGrid: currentGrid
+	      }
+	    )
+	    setBackground(currentBackgroundOpacity)
+	    myGrid = (current) => {
+	      return [
+		() => {clearCanvas(grid)},
+		() => {clearCanvas(grid); triangleGrid(cells)},
+		() => {clearCanvas(grid); squareGrid(cells)},
+		() => {clearCanvas(grid); hexGrid(cells)},
+		() => {clearCanvas(grid); dotsGrid(cells)}
+	      ][current]
+	    }
+	    myGrid(currentGrid)()
+	  }
+	  break
+	case 'n':
+	  if (!isTyping) {
+	    contrast++
+	      currentColors = [
+		['#0000ff', '#ffff00'],
+		['#00ffff', '#ff0000'],
+		['#ff00ff', '#00ff00'],
+		['#ffff00', '#0000ff'],
+		['#ff0000', '#00ffff'],
+		['#00ff00', '#ff00ff']
+	      ][contrast % 6]
+	    
+	    currentGridColor = currentColors[(gridContrast + 1) % 2]
+	    applyTheme(
+	      {
+		pen: {strokeStyle: currentColors[0], lineWidth: pen.lineWidth},
+		grid: {strokeStyle: (currentGridOpacity) => getRGBA(currentGridOpacity, currentGridColor), lineWidth: 2},
+		backgroundOpacity: currentBackgroundOpacity,
+		background: (alpha) => currentColors[1],
+		image: collections,
+		cells: cells,
+		zoom: 0,
+		initialGrid: currentGrid
+	      }
+	    )
+	    setBackground(currentBackgroundOpacity)
+	    myGrid = (current) => {
+	      return [
+		() => {clearCanvas(grid)},
+		() => {clearCanvas(grid); triangleGrid(cells)},
+		() => {clearCanvas(grid); squareGrid(cells)},
+		() => {clearCanvas(grid); hexGrid(cells)},
+		() => {clearCanvas(grid); dotsGrid(cells)}
+	      ][current]
+	    }
+	    myGrid(currentGrid)()
+	  }
+	  break
+	case 'p':
+	  if (!isTyping) {
+	    clearCanvas(image)
+	    setImage(themes[initialTheme].image(), image)
+	  }
+	  break
+	case '.':
+	  if (!isTyping) {
+	    slide++
+	      clearCanvas(image)
+	    setImage(slideshow[slide % slideshow.length], image)
+	    document.title = parseFilename(slideshow[slide % slideshow.length])
+	  }
+	  break
+	case ',':
+	  if (!isTyping) {
+	    slide--
+	      clearCanvas(image)
+	    setImage(slideshow[slide % slideshow.length], image)
+	    document.title = parseFilename(slideshow[slide % slideshow.length])
+	  }
+	  break
+	case '-':
+	  if (!isTyping) {
+	    if (pen.lineWidth > 1) {
+	      currentPenWidth = parseInt(currentPenWidth) - 1
+	      pen.lineWidth = currentPenWidth
+	      adjustTypeface(pen.lineWidth)
+	      pen.font = `${typeface.height}px ${typeface.font}`
+	      eraser = currentEraseRadius = 10 + pen.lineWidth
+	    }
+	  }
+	  break;
+	case '=':
+	  if (!isTyping) {
+	    currentPenWidth = parseInt(currentPenWidth) + 1
+	    pen.lineWidth = currentPenWidth
+	    adjustTypeface(pen.lineWidth)
+	    pen.font = `${typeface.height}px ${typeface.font}`
+	    eraser = currentEraseRadius = 10 + pen.lineWidth
+	  }
+	  break;
+	case '`':
+	  if (!isTyping) {
+	    currentBackgroundOpacity = 0.0
+	    setBackground(currentBackgroundOpacity)
+	  }
+	  break
+	case '1':
+	  if (!isTyping) {
+	    currentBackgroundOpacity = 0.1
+	    setBackground(currentBackgroundOpacity)
+	  }
+	  break
+	case '2':
+	  if (!isTyping) {
+	    currentBackgroundOpacity = 0.2
+	    setBackground(currentBackgroundOpacity)
+	  }
+	  break
+	case '3':
+	  if (!isTyping) {
+	    currentBackgroundOpacity = 0.3
+	    setBackground(currentBackgroundOpacity)
+	  }
+	  break
+	case '4':
+	  if (!isTyping) {
+	    currentBackgroundOpacity = 0.4
+	    setBackground(currentBackgroundOpacity)
+	  }
+	  break
+	case '5':
+	  if (!isTyping) {
+	    currentBackgroundOpacity = 0.5
+	    setBackground(currentBackgroundOpacity)
+	  }
+	  break
+	case '6':
+	  if (!isTyping) {
+	    currentBackgroundOpacity = 0.6
+	    setBackground(currentBackgroundOpacity)
+	  }
+	  break
+	case '7':
+	  if (!isTyping) {
+	    currentBackgroundOpacity = 0.7
+	    setBackground(currentBackgroundOpacity)
+	  }
+	  break
+	case '8':
+	  if (!isTyping) {
+	    currentBackgroundOpacity = 0.8
+	    setBackground(currentBackgroundOpacity)
+	  }
+	  break
+	case '9':
+	  if (!isTyping) {
+	    currentBackgroundOpacity = 0.9
+	    setBackground(currentBackgroundOpacity)
+	  }
+	  break
+	case '0':
+	  if (!isTyping) {
+	    currentBackgroundOpacity = 1.0
+	    setBackground(currentBackgroundOpacity)
+	  }
+	  break
+	case 'v':
+	  if (!isTyping) {
+	    vanish.set(currentMouse.offsetX, currentMouse.offsetY)
+	    grids[currentGrid](cells)
+	    console.log(`vanish: (${vanish.x}, ${vanish.y})`)
+	  }
+	  break
+	}
+      })
+
+      window.addEventListener("keydown", function (event) {
+	if (event.defaultPrevented) {
+	  return; // Do nothing if the event was already processed
+	}
+
+	switch (event.key) {
+	case 'ArrowRight':
+	  event.preventDefault()
+	  if (!isTyping) {
+	    constraint = 'arc'
+	  } else { 
+	    last.x += typeface.width
+	    drawCursor()
+	  }
+	  break
+	case 'ArrowUp':
+	  event.preventDefault()
+	  if (!isTyping) {
+	    constraint = 'vertical'
+	  } else { 
+	    last.y -= typeface.lineSpacing
+	    drawCursor()
+	  }
+	  break
+	case 'ArrowLeft':
+	  event.preventDefault()
+	  if (!isTyping) {
+	    constraint = 'horizontal'
+	  } else { 
+	    last.x -= typeface.width
+	    drawCursor()
+	  }
+	  break
+	case 'ArrowDown':
+	  event.preventDefault()
+	  if (!isTyping) {
+	    constraint = 'vanishing'
+	  } else { 
+	    last.y += typeface.lineSpacing
+	    drawCursor()
+	  }
+	  break
+	case '/':
+	  if (!isTyping) {
+	    constraint = 'parallel'
+	  }
+	  break
+	case 'z':
+	  if (!isTyping) {
+	    isBoxErasing = true
+	  }
+	  break
+	case 'q':
+	  if (!isTyping) {
+	    isDrawingRectangle = true
+	  }
+	  break
+	case 'e':
+	  if (!isTyping) {
+	    isDrawingEllipse = true
+	  }
+	  break
+	case 'l':
+	  if (!isTyping) {
+	    isDrawingLine = true
+	  }
+	  break
+	case 'Shift':
+	  pen.lineWidth = currentPenWidth * 1.5
+	  eraser = currentEraseRadius * 2
+	  break
+	case 'Escape':
+	  mouseIsDown = false
+	  isDrawing = false
+	  isDrawingRectangle = false
+	  isDrawingEllipse = false
+	  isDrawingLine = false
+	  isErasing = false
+	  isTyping = false
+	  clearCanvas(grid)
+	  grids[currentGrid](cells)
+	  break
+	case 'Backspace':
+	  if (!isTyping) {
+	    clearCanvas(pen)
+	  } else {
+	    last.x -= typeface.width
+	    pen.clearRect(
+	      last.x, 
+	      last.y - typeface.height, 
+	      typeface.width, 
+	      typeface.height * 1.21
+	    )
+	    drawCursor()
+	  }
+	  break
+	case 'Enter':
+	  if (isTyping) {
+	    last.x = down.x
+	    last.y += typeface.lineSpacing
+	    drawCursor()
+	  }
+	}
+      });
+
+      window.addEventListener("keyup", function (event) {
+	if (event.defaultPrevented) {
+	  return; // Do nothing if the event was already processed
+	}
+
+	switch (event.key) {
+	case ' ':
+	  isErasing = false
+	  break
+	case 'ArrowRight':
+	  constraint = 'none'
+	  break
+	case 'ArrowUp':
+	  constraint = 'none'
+	  break
+	case 'ArrowLeft':
+	  constraint = 'none'
+	  break
+	case 'ArrowDown':
+	  constraint = 'none'
+	  break
+	case '/':
+	  constraint = 'none'
+	  break
+	case 'z':
+	  isBoxErasing = false
+	  break
+	case 'q':
+	  isDrawingRectangle = false
+	  break
+	case 'e':
+	  isDrawingEllipse = false
+	  break
+	case 'l':
+	  isDrawingLine = false
+	  break
+	case 'Shift':
+	  pen.lineWidth = currentPenWidth
+	  eraser = currentEraseRadius
+	  break
+	}
+      })
+      if (query.image) {
+	console.log(`image: ${query.image}`)
+      }
+      if (pens) {
+	console.log(`pens: ${pens.join('\n')}`)
+      }
+      if (query.snap) {
+	snap()
+      } else {
+	setImage(query.image || themes[initialTheme].image() || defaultImage, image)
+      } 
+      pen.fillStyle = pen.strokeStyle = themes[initialTheme].pen.strokeStyle
+      console.log(`size: ${canvasWidth} x ${canvasHeight}`)
+    </script>
+  </body>
+</html>
