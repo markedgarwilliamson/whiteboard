@@ -470,7 +470,7 @@
 	let { hue, sat, lum, alpha } = color
 	if (distance <= sideLength * 7 / 16) {
 	  if(distance > sideLength * 1 / 16) {
-	    hue = pixelLocation.scale({ x: 1, y: -1}).getAngle(wheelCenter) * 180 / Math.PI
+	    hue = pixelLocation.getAngle(wheelCenter) * 180 / Math.PI
 	  }
 	  prop.sat = sat = bound((distance - (sideLength * 1 / 16)) * 4 / sideLength)
 	} else if (
@@ -720,9 +720,9 @@
 	  break
 	}
       }
+
       constraints[HEXAGONAL] = (toolLocation) => {
 	const angle = toolLocation.getAngle(whiteboardState[MOUSE_DOWN_LOCATION]) % Math.PI
-	console.log('angle: ', angle)
 	switch (true) {
 	case angle <= Math.PI / 3:
 	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI / 6 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
@@ -735,6 +735,7 @@
 	  break
 	}
       }
+
       constraints[DIAGONAL] = (toolLocation) => {
 	const angle = toolLocation.getAngle(whiteboardState[MOUSE_DOWN_LOCATION]) % Math.PI
 	switch (true) {
