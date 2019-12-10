@@ -1,16 +1,14 @@
 # whiteboard
 Just another canvas whiteboard app
 <br />
-------
-TOOLS<br />
+TOOLS: <br />
   P - paintbrush<br />
   R - rectangle<br />
   E - ellipse<br />
   L - line<br />
   M - measure<br />
 <br />
-------
-OTHER CONTROLS<br />
+OTHER CONTROLS: <br />
   backtick, 0 - 9: select brushes, hold to set colors.<br />
     the color palettes are arranged as follows:<br />
       Left - paintbrush color<br />
@@ -28,15 +26,14 @@ Ctrl:
   constrains rectangle and ellipse to 1x1 aspect ratio<br />
   line to 15° increments<br />
 <br />
-Arrow Keys<br />
+Arrow Keys: <br />
   Up constrains paintbrush to vertical<br />
   Left constrains paintbrush to horizontal<br />
   Down constrains to lines to and away from the vanishing point<br />
   Right constrains to arcs about the vanishing point<br />
   Forward Slash constrainst to lines parallel to the most recent line made with the paintbrush in committed constraint<br />
   <br />
-------
-QUERY PARAMETERS<br />
+QUERY PARAMETERS: <br />
   document-title<br />
   screen-size<br />
   board-size<br />
