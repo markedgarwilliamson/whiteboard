@@ -2,7 +2,7 @@
 Just another canvas whiteboard app
 <br />
 ------
-TOOLS:<br />
+TOOLS<br />
   P - paintbrush<br />
   R - rectangle<br />
   E - ellipse<br />
@@ -28,7 +28,7 @@ Ctrl:
   constrains rectangle and ellipse to 1x1 aspect ratio<br />
   line to 15° increments<br />
 
-Arrow Keys:<br />
+Arrow Keys<br />
   Up constrains paintbrush to vertical<br />
   Left constrains paintbrush to horizontal<br />
   Down constrains to lines to and away from the vanishing point<br />
