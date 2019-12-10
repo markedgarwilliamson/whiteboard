@@ -6,6 +6,7 @@ TOOLS: <br />
   R - rectangle<br />
   E - ellipse<br />
   L - line<br />
+  T - text<br />
   M - measure<br />
 <br />
 OTHER CONTROLS: <br />
@@ -14,7 +15,8 @@ OTHER CONTROLS: <br />
       Left - paintbrush color<br />
       Center - overlay color<br />
       Right - grid color<br />
-
+  '-', '=' - adjust current brush width<br />
+  '\[', ']' - adjust font size<br />
   V - place vanishing point<br />
   G - select between no grid, a square grid, and a triangular grid<br />
   J - select manner in which grid cells are outlined<br />
