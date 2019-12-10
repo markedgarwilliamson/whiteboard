@@ -289,13 +289,19 @@
 	  if (!v) {
 	    v = new Vector2(0, 0)
 	  }
-	  let a = Math.atan((this.y - v.y) / (this.x - v.x))
-	  if (this.x < v.x) {
-	    a += Math.PI
-	  } else if (this.y < v.y) {
-	    a += 2 * Math.PI
+	  if (this.x === v.x) {
+	    return this.y > v.y 
+	      ? Math.PI / 2 
+	      : Math.PI * 3 / 2
+	  } else {
+	    let a = Math.atan((this.y - v.y) / (this.x - v.x))
+	    if (this.x < v.x) {
+	      a += Math.PI
+	    } else if (this.y < v.y) {
+	      a += 2 * Math.PI
+	    }
+	    return a % (2 * Math.PI)
 	  }
-	  return a % (2 * Math.PI)
 	}
 
 	getPolarCoordinates () {
@@ -663,7 +669,10 @@
       constraints[HORIZONTAL] = (toolLocation) => new Vector2(toolLocation.x, whiteboardState[MOUSE_DOWN_LOCATION].y)
       constraints[VERTICAL] = (toolLocation) => new Vector2(whiteboardState[MOUSE_DOWN_LOCATION].x, toolLocation.y)
       constraints[PARALLEL] = (toolLocation) => constrainLine(
-	whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2(1, Math.tan(whiteboardState[ANGLE]))),
+	whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2(
+	  Math.cos(whiteboardState[ANGLE]), 
+	  Math.sin(whiteboardState[ANGLE])
+	)),
 	whiteboardState[MOUSE_DOWN_LOCATION],
 	toolLocation
       )
@@ -777,7 +786,6 @@
       tools[COMMITTED] = {
 	mouseDown: (toolLocation) => {
 	  whiteboardState[ANGLE] = null
-	  console.log('whiteboardState[ANGLE]: ', whiteboardState[ANGLE])
 	},
 	mouseMove: (toolLocation) => {
 	  const offset = new Vector2(toolLocation.x, toolLocation.y)
@@ -1927,24 +1935,6 @@
 	  drawTextCursor()
 	}
       }
-      
-      // Draw
-      layers[MARKS].lineJoin = 'round'
-      layers[MARKS].lineCap = 'round'
-
-      let bold = false
-      let isDrawing = false
-      let isErasing = false
-      let isBoxErasing = false
-      let isCopying = false
-      let isPickingColor = false
-      let clipboard
-      let isDrawingRectangle = false
-      
-      let isDrawingLine = false
-      let isTyping = false
-      let constraint = NONE
-      let currentMouse
 
       const setFontHeight = (heightIndex, font) => {
 	setWhiteboardState(FONT_HEIGHT, heightIndex)
@@ -1960,6 +1950,11 @@
       const offset = globalOrigin.copy()
 
       const constrainLine = (a, b, c) => {
+	if (a.x === b.x) {
+	  return new Vector2(a.x, c.y)
+	} else if (a.y === b.y) {
+	  return new Vector2(c.x, a.y)
+	}
 	const slope = {
 	  b: (b.y - a.y) / (b.x - a.x),
 	  c: (b.x - a.x) / (b.y - a.y) // the slope of the second line is the negative inverse of the first, but this is left positive to simplify thewhiteboardState[MOUSE_DOWN_LOCATION] equation.
@@ -2393,6 +2388,18 @@
       })
 
       // INITIALIZATION
+      let isDrawing = false
+      let isErasing = false
+      let isBoxErasing = false
+      let isCopying = false
+      let isPickingColor = false
+      let clipboard
+      let isDrawingRectangle = false
+      let isDrawingLine = false
+      let isTyping = false
+      let constraint = NONE
+      let currentMouse
+
       const query = parseQueryString(window.location.href)
       const whiteboardState = {}
       whiteboardState[SCREEN_SIZE] = query[SCREEN_SIZE] 
@@ -2438,6 +2445,8 @@
 
       dom[PROBLEM].style.display = 'none'
       dom[PALETTE].style.display = 'none'
+      layers[MARKS].lineJoin = 'round'
+      layers[MARKS].lineCap = 'round'
       applyState(whiteboardState)
 
       document.title = query[DOCUMENT_TITLE] || 'Whiteboard' 
@@ -2457,6 +2466,9 @@
       if (whiteboardState[TOOL] === TEXT) {
 	drawTextCursor()
 	isTyping = true
+      } else if (whiteboardState[TOOL] === COMMITTED 
+	|| whiteboardState[TOOL] === PALETTE) {
+	whiteboardState[TOOL] = PAINT_BRUSH
       }
     </script>
     <script src="chemistry.js"></script>
