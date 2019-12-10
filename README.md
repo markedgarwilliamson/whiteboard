@@ -27,7 +27,7 @@ Ctrl:
   constrains paintbrush to grid axes, or commits to straight line, if no grid is visible<br />
   constrains rectangle and ellipse to 1x1 aspect ratio<br />
   line to 15° increments<br />
-
+<br />
 Arrow Keys<br />
   Up constrains paintbrush to vertical<br />
   Left constrains paintbrush to horizontal<br />
