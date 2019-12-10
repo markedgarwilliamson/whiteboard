@@ -17,8 +17,8 @@ OTHER CONTROLS: <br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Right - grid color<br />
 &nbsp;&nbsp;'-', '=' - adjust current brush width<br />
 &nbsp;&nbsp;'\[', ']' - adjust font size<br />
-&nbsp;&nbsp;V - place vanishing point<br />
 &nbsp;&nbsp;F - toggle fill for shapes<br />
+&nbsp;&nbsp;V - place vanishing point<br />
 &nbsp;&nbsp;G - select between no grid, a square grid, and a triangular grid<br />
 &nbsp;&nbsp;J - select manner in which grid cells are outlined<br />
 &nbsp;&nbsp;I - reset unsplash image<br />
