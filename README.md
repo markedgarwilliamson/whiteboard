@@ -22,7 +22,7 @@ OTHER CONTROLS: <br />
 &nbsp;&nbsp;G - select between no grid, a square grid, and a triangular grid<br />
 &nbsp;&nbsp;J - select manner in which grid cells are outlined<br />
 &nbsp;&nbsp;I - reset unsplash image<br />
-&nbsp;&nbsp;S - save marks data<br />
+&nbsp;&nbsp;S - save marks data (load with query parameter)<br />
 <br />
 Ctrl:
 &nbsp;&nbsp;constrains paintbrush to grid axes, or commits to straight line, if no grid is visible<br />
@@ -45,5 +45,5 @@ QUERY PARAMETERS: <br />
 &nbsp;&nbsp;grid-type (two numbers, between 0 and 2, separated by 'x')<br />
 &nbsp;&nbsp;problem-active<br />
 &nbsp;&nbsp;problem-image<br />
-&nbsp;&nbsp;data<br />
+&nbsp;&nbsp;marks-data<br />
 &nbsp;&nbsp;fill-active<br />
