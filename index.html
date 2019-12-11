@@ -546,7 +546,9 @@
 	  layer.appendChild(img)
 	} else {
 	  imageURL = src
-	  if (src.includes('collection')) {
+	  if (typeof src === 'object' && src.data.includes('data:image/png;base64')) {
+	    console.log(`marks-image: ${src.name}`)
+	  } else if (src.includes('collection')) {
 	    if (navigator.onLine) {
 	      console.log(`collection: ${src.split('/')[4]}`)
 	    } else {
@@ -559,7 +561,7 @@
 	  let img = new Image()
 	  img.src = src
 	  displayImg(layer, img)
-	  layer.drawImage(img, 0, 0, whiteboardState[SCREEN_SIZE].x, whiteboardState[SCREEN_SIZE].y)
+	  layer.drawImage(img, 0, 0, whiteboardState[BOARD_SIZE].x, whiteboardState[BOARD_SIZE].y)
 	}
       }
 
@@ -574,6 +576,23 @@
 	    whiteboardState[BOARD_SIZE].x, 
 	    whiteboardState[BOARD_SIZE].y
 	  )
+	}
+      }
+
+      const logMarksData = () => {
+	const names = []
+	for (let name in whiteboardState[SAVED_MARKS_DATA]) {
+	  names.push(name)
+	}
+	return names
+      }
+      
+      const clearMarksData = (name) => {
+	if (name) {
+	  delete whiteboardState[SAVED_MARKS_DATA][name]
+	  setWhiteboardState(SAVED_MARKS_DATA)
+	} else {
+	  setWhiteboardState(SAVED_MARKS_DATA, {})
 	}
       }
 
@@ -631,6 +650,8 @@
       const PRINT_HEAD_LOCATION = 'PRINT_HEAD_LOCATION' // Vector2 *
       const MEASUREMENT = 'MEASUREMENT' // Vector2 *
       const FUNCTIONS = 'FUNCTIONS' // temporary array
+      const MARKS_DATA = 'MARKS_DATA' // String
+      const SAVED_MARKS_DATA = 'SAVED_MARKS_DATA' // Object: { <name>: <dataURI> }
 
       const NONE = 'NONE'
       const VANISHING = 'VANISHING'
@@ -1297,6 +1318,7 @@
       defaultState[MOUSE_UP_LOCATION] = globalOrigin.copy()
       defaultState[PRINT_HEAD_LOCATION] = globalOrigin.copy()
       defaultState[MEASUREMENT] = globalOrigin.copy()
+      defaultState[SAVED_MARKS_DATA] = {}
       
       // Prepare Objects for Grid
       const drawLine = function(layer, fv, tv, color, width) {
@@ -2094,7 +2116,12 @@
 	  case 's':
 	  case 'S':
 	    if (!isTyping) {
-	      dom[MARKS].style.zIndex = 10
+	      whiteboardState[
+		SAVED_MARKS_DATA][query[MARKS_DATA] 
+		  || prompt('Please name this data', 'untitled')
+		] = dom[MARKS].toDataURL('image/png')
+	      setWhiteboardState(SAVED_MARKS_DATA, whiteboardState[SAVED_MARKS_DATA])
+	      console.log(`Saved ${query[MARKS_DATA]}`)
 	    }
 	    break
 	  case '.':
@@ -2357,12 +2384,6 @@
 	  }
 	  constraint = NONE
 	  break
-	case 's':
-	case 'S':
-	  if (!isTyping) {
-	    dom[MARKS].style.zIndex = 6
-	  }
-	  break
 	case '`':
 	case '0':
 	case '1':
@@ -2449,7 +2470,7 @@
       layers[MARKS].lineCap = 'round'
       applyState(whiteboardState)
 
-      document.title = query[DOCUMENT_TITLE] || 'Whiteboard' 
+      document.title = query[DOCUMENT_TITLE] || query[MARKS_DATA] || 'Whiteboard' 
       /* || query[MARKS_IMAGE] 
 	 ? parseFilename(query[MARKS_IMAGE]) 
 	 : query[WALLPAPER_IMAGE] 
@@ -2469,6 +2490,9 @@
       } else if (whiteboardState[TOOL] === COMMITTED 
 	|| whiteboardState[TOOL] === PALETTE) {
 	whiteboardState[TOOL] = PAINT_BRUSH
+      }
+      if (whiteboardState[SAVED_MARKS_DATA][query[MARKS_DATA]]) {
+	setImage(whiteboardState[SAVED_MARKS_DATA][query[MARKS_DATA]], layers[MARKS])
       }
     </script>
   </body>
