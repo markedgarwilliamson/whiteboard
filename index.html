@@ -1,4 +1,10 @@
 <!DOCTYPE html>
+<!-- Begin license text.
+     Copyright 2019 DAVID WILLIAMSON
+     Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+     The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+     End license text. -->
 <html lang="en">
   <head>
     <meta charset="UTF-8"/>
@@ -6,13 +12,34 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <meta name="apple-mobile-web-app-capable" content="yes" /> 
     <style> 
+     body {
+       font-family: 'Courier New';
+     }
+
      body::-webkit-scrollbar { 
        display: none;
-     } 
+     }
 
-     #wallpaperDiv {
-       position: relative;
-       z-index: 1;
+     .time {
+       display: none;
+       justify-content: space-around;
+       align-items: center;
+       position: fixed;
+     }
+
+     #DAYS {
+       height: 40px;
+       left: 80px;
+     }
+
+     #HOURS {
+       flex-direction: column;
+       width: 80px;
+       top: 40px;
+     }
+
+     #HOURS p {
+       margin: 0;
      }
     </style> 
   </head>
@@ -23,7 +50,10 @@
     <div id="PROBLEM" style="position: absolute; left: 0px; top: 0px; z-index: 5;"></div>
     <canvas id="MARKS" style="position: absolute; left: 0px; top: 0px; z-index: 6;"></canvas>
     <canvas id="PALETTE" style="position: fixed; left: 0px; top: 0px; z-index: 7;"></canvas>
-    <div id="TOOLS" style="position: absolute; left: 0px; top: 0px; z-index: 8;"></div>
+    <div id="TOOLS" style="position: absolute; left: 0px; top: 0px; z-index: 8;">
+      <div id="HOURS" class="time"></div>
+      <div id="DAYS" class="time"></div>
+    </div>
     <div id="SENSOR" style="position: absolute; left: 0px; top: 0px; z-index: 9;"></div>
     
     <script>
@@ -214,12 +244,12 @@
 		y: x[1]
 	      })
 	    } else {
-	      Object.assign(this, x.scale(whiteboardState[SQUARE_GRID_UNITS]))
+	      Object.assign(this, x.scale(wState[SQUARE_GRID_UNITS]))
 	    }
 	  } else {
 	    Object.assign(this, { 
-	      x: x * whiteboardState[SQUARE_GRID_UNITS].x,
-	      y: y * whiteboardState[SQUARE_GRID_UNITS].y
+	      x: x * wState[SQUARE_GRID_UNITS].x,
+	      y: y * wState[SQUARE_GRID_UNITS].y
 	    })
 	  }
 	}
@@ -235,27 +265,27 @@
 		y: x[1]
 	      })
 	    } else {
-	      Object.assign(this, x.scale(whiteboardState[HEX_GRID_UNIT]))
+	      Object.assign(this, x.scale(wState[HEX_GRID_UNIT]))
 	    }
 	  } else {
 	    Object.assign(this, { 
-	      x: x * whiteboardState[HEX_GRID_UNIT],
-	      y: y * whiteboardState[HEX_GRID_UNIT]
+	      x: x * wState[HEX_GRID_UNIT],
+	      y: y * wState[HEX_GRID_UNIT]
 	    })
 	  }
 	}
 
 	getSquareUnits () {
 	  return new Vector2(
-	    this.x / whiteboardState[SQUARE_GRID_UNITS].x,
-	    this.y / whiteboardState[SQUARE_GRID_UNITS].y
+	    this.x / wState[SQUARE_GRID_UNITS].x,
+	    this.y / wState[SQUARE_GRID_UNITS].y
 	  )
 	}
 
 	getHexUnits () {
 	  return new Vector2(
-	    this.x / whiteboardState[HEX_GRID_UNIT],
-	    this.y / whiteboardState[HEX_GRID_UNIT]
+	    this.x / wState[HEX_GRID_UNIT],
+	    this.y / wState[HEX_GRID_UNIT]
 	  )
 	}
 
@@ -408,11 +438,11 @@
 
       const setWhiteboardState = (key, value) => { 
 	if (value !== undefined) {
-	  whiteboardState[key] = value
+	  wState[key] = value
 	}
 	localStorage.setItem(
 	  WHITEBOARD_STATE, 
-	  JSON.stringify(whiteboardState)
+	  JSON.stringify(wState)
 	)
 	return value
       }
@@ -439,12 +469,7 @@
 	    ]
 	  }
 	}
-	// setImage(state[WALLPAPER_IMAGE], dom[WALLPAPER])
-	dom[WALLPAPER].style.background = `url(${state[WALLPAPER_IMAGE]})`
-	dom[WALLPAPER].style.backgroundAttachment = 'fixed'
-	// dom[WALLPAPER].style.backgroundPosition = 'center'
-	dom[WALLPAPER].style.backgroundRepeat = 'no-repeat'
-	dom[WALLPAPER].style.backgroundSize = `${state[SCREEN_SIZE].x}px ${state[SCREEN_SIZE].y}px`
+	setImage(WALLPAPER, state[WALLPAPER_IMAGE])
 	setColor(state[OVERLAY_COLOR], dom[OVERLAY])
 	setColor(state[GRID_COLOR], layers[GRID])
 	setGrid(state[GRID_TYPE])
@@ -454,12 +479,37 @@
 	  layers[layer].setAttribute('viewBox', `0 0 ${state[BOARD_SIZE].x} ${state[BOARD_SIZE].y}`)
 	  layers[layer].setAttribute('xmlns', svgNameSpace)
 	}
-	setImage(state[PROBLEM_IMAGE], dom[PROBLEM], { margin: '2rem'})
+	setImage(PROBLEM, state[PROBLEM_IMAGE], { margin: '2rem'})
 	if (query[PROBLEM_ACTIVE]) {
 	  dom[PROBLEM].style.display = 'initial'
 	} else {
 	  dom[PROBLEM].style.display = 'none'
 	}
+	
+	// initialize planner headers
+	Object.assign(daysElement.style, {
+	  color: state[GRID_COLOR].getRgba(),
+	  background: state[TOOLS_COLOR].getRgba()
+	})
+	Object.assign(hoursElement.style, {
+	  color: state[GRID_COLOR].getRgba(),
+	  background: state[TOOLS_COLOR].getRgba(),
+	  height: `${wState[BOARD_SIZE].y  - 40}px`
+	})
+	for (let day of weekdays) {
+	  const span = document.createElement('span')
+	  span.innerHTML = day
+	  daysElement.appendChild(span)
+	}
+	for (let hour = 0; hour < 24; hour ++) {
+	  const p1 = document.createElement('p')
+	  const p2 = document.createElement('p')
+	  p1.innerHTML = `${((hour + 6) % 24).toString().padStart(2, '0')}:00`
+	  p2.innerHTML = `${((hour + 6) % 24).toString().padStart(2, '0')}:30`
+	  hoursElement.appendChild(p1)
+	  hoursElement.appendChild(p2)
+	}
+	setGrid()
 	setBrushWidth(state[BRUSHES][state[BRUSH]].width)
 	setFontHeight(state[FONT_HEIGHT])
 	setColor(state[BRUSHES][state[BRUSH]].color, layers[MARKS])
@@ -476,7 +526,7 @@
 	let { hue, sat, lum, alpha } = color
 	if (distance <= sideLength * 7 / 16) {
 	  if(distance > sideLength * 1 / 16) {
-	    hue = pixelLocation.getAngle(wheelCenter) * 180 / Math.PI
+	    hue = 360 - (pixelLocation.getAngle(wheelCenter) * 180 / Math.PI)
 	  }
 	  prop.sat = sat = bound((distance - (sideLength * 1 / 16)) * 4 / sideLength)
 	} else if (
@@ -502,48 +552,56 @@
 	  }, 50);
 	  return;
 	}
-	/* if (whiteboardState[ZOOM] < 2) {
+
+	/* if (wState[ZOOM] < 2) {
 	   let scale;
 	   let z = [
-	   whiteboardState[SCREEN_SIZE].y / whiteboardState[SCREEN_SIZE].x > obj.naturalHeight / obj.naturalWidth,
-	   whiteboardState[SCREEN_SIZE].y / whiteboardState[SCREEN_SIZE].x < obj.naturalHeight / obj.naturalWidth
-	   ][whiteboardState[ZOOM]]
+	   wState[SCREEN_SIZE].y / wState[SCREEN_SIZE].x > obj.naturalHeight / obj.naturalWidth,
+	   wState[SCREEN_SIZE].y / wState[SCREEN_SIZE].x < obj.naturalHeight / obj.naturalWidth
+	   ][wState[ZOOM]]
 	   if (z) {
-	   scale = whiteboardState[SCREEN_SIZE].x / obj.naturalWidth
+	   scale = wState[SCREEN_SIZE].x / obj.naturalWidth
 	   } else {
-	   scale = whiteboardState[SCREEN_SIZE].y / obj.naturalHeight
+	   scale = wState[SCREEN_SIZE].y / obj.naturalHeight
 	   }
 	   
 	   context.drawImage(obj,
-	   (whiteboardState[SCREEN_SIZE].x - obj.naturalWidth * scale) / 2,
-	   (whiteboardState[SCREEN_SIZE].y - obj.naturalHeight * scale) / 2,
+	   (wState[SCREEN_SIZE].x - obj.naturalWidth * scale) / 2,
+	   (wState[SCREEN_SIZE].y - obj.naturalHeight * scale) / 2,
 	   obj.naturalWidth * scale,
 	   obj.naturalHeight * scale
 	   )
 	   } else {
-	   let scale = whiteboardState[SCREEN_SIZE].y / whiteboardState[SCREEN_SIZE].x < obj.naturalHeight / obj.naturalWidth 
-	   ? whiteboardState[SCREEN_SIZE].x / obj.naturalWidth 
-	   : whiteboardState[SCREEN_SIZE].y / obj.naturalHeight
-	   if (whiteboardState[ZOOM] > 2) {
+	   let scale = wState[SCREEN_SIZE].y / wState[SCREEN_SIZE].x < obj.naturalHeight / obj.naturalWidth 
+	   ? wState[SCREEN_SIZE].x / obj.naturalWidth 
+	   : wState[SCREEN_SIZE].y / obj.naturalHeight
+	   if (wState[ZOOM] > 2) {
 	   scale = 1
 	   }
 	   for (let layer in canvas) {
-	   canvas[layer].width = whiteboardState[SCREEN_SIZE].x = obj.naturalWidth * scale
-	   canvas[layer].height = whiteboardState[SCREEN_SIZE].y = obj.naturalHeight * scale
+	   canvas[layer].width = wState[SCREEN_SIZE].x = obj.naturalWidth * scale
+	   canvas[layer].height = wState[SCREEN_SIZE].y = obj.naturalHeight * scale
 	   } */
-	  context.drawImage(obj, 0, 0, whiteboardState[BOARD_SIZE].x, whiteboardState[BOARD_SIZE].y)
+	  context.drawImage(obj, 0, 0, wState[BOARD_SIZE].x, wState[BOARD_SIZE].y)
       }
 
-      const setImage = (src, layer, style) => {
-	if (layer.nodeName === 'DIV') {
-	  img = document.createElement('img')
-	  img.src = src
-	  if (style) {
-	    Object.assign(img.style, style)
+      const setImage = (layer, src, style) => {
+	if (dom[layer].nodeName === 'DIV') {
+	  if (layer === WALLPAPER) {
+	    dom[WALLPAPER].style.background = `url(${src})`
+	    dom[WALLPAPER].style.backgroundAttachment = 'fixed'
+	    dom[WALLPAPER].style.backgroundRepeat = 'no-repeat'
+	    dom[WALLPAPER].style.backgroundSize = `${wState[SCREEN_SIZE].x}px ${wState[SCREEN_SIZE].y}px`
 	  } else {
-	    img.width = whiteboardState[SCREEN_SIZE].x
+	    img = document.createElement('img')
+	    img.src = src
+	    if (style) {
+	      Object.assign(img.style, style)
+	    } else {
+	      img.width = wState[SCREEN_SIZE].x
+	    }
+	    dom[layer].appendChild(img)
 	  }
-	  layer.appendChild(img)
 	} else {
 	  imageURL = src
 	  if (typeof src === 'object' && src.data.includes('data:image/png;base64')) {
@@ -560,8 +618,8 @@
 	  clearLayer(layer)
 	  let img = new Image()
 	  img.src = src
-	  displayImg(layer, img)
-	  layer.drawImage(img, 0, 0, whiteboardState[BOARD_SIZE].x, whiteboardState[BOARD_SIZE].y)
+	  displayImg(layers[layer], img)
+	  layers[layer].drawImage(img, 0, 0, wState[BOARD_SIZE].x, wState[BOARD_SIZE].y)
 	}
       }
 
@@ -573,15 +631,15 @@
 	  layer.clearRect(
 	    0, 
 	    0, 
-	    whiteboardState[BOARD_SIZE].x, 
-	    whiteboardState[BOARD_SIZE].y
+	    wState[BOARD_SIZE].x, 
+	    wState[BOARD_SIZE].y
 	  )
 	}
       }
 
       const logMarksData = () => {
 	const names = []
-	for (let name in whiteboardState[SAVED_MARKS_DATA]) {
+	for (let name in wState[SAVED_MARKS_DATA]) {
 	  names.push(name)
 	}
 	return names
@@ -589,7 +647,7 @@
       
       const clearMarksData = (name) => {
 	if (name) {
-	  delete whiteboardState[SAVED_MARKS_DATA][name]
+	  delete wState[SAVED_MARKS_DATA][name]
 	  setWhiteboardState(SAVED_MARKS_DATA)
 	} else {
 	  setWhiteboardState(SAVED_MARKS_DATA, {})
@@ -615,6 +673,10 @@
       const GRID = 'GRID'
       const PROBLEM = 'PROBLEM'
       const TOOLS = 'TOOLS'
+      const DAYS = 'DAYS'
+      const HOURS = 'HOURS'
+      const TIME_PADDING = 'TIME_PADDING'
+      const TIME_UNITS = 'TIME_UNITS'
       const MARKS = 'MARKS'
       const SENSOR = 'SENSOR'
 
@@ -634,6 +696,7 @@
       const PROBLEM_ACTIVE = 'PROBLEM_ACTIVE' // Boolean
       const VANISHING_POINT = 'VANISHING_POINT' // Vector2 *
       const TOOL = 'TOOL' // String, not stored
+      const TOOLS_COLOR = 'TOOLS_COLOR'
       const MARKS_IMAGE = 'MARKS_IMAGE' // String, not stored
       const BRUSH = 'BRUSH' // Number
       const BRUSHES = 'BRUSHES' // Object { width: Number, color: Color * }
@@ -652,6 +715,7 @@
       const FUNCTIONS = 'FUNCTIONS' // temporary array
       const MARKS_DATA = 'MARKS_DATA' // String
       const SAVED_MARKS_DATA = 'SAVED_MARKS_DATA' // Object: { <name>: <dataURI> }
+      const SAVE_PROMPT_ACTIVE = 'SAVE_PROMPT_ACTIVE' // Boolean
 
       const NONE = 'NONE'
       const VANISHING = 'VANISHING'
@@ -663,6 +727,7 @@
       const HEXAGONAL = 'HEXAGONAL'
       const DIAGONAL = 'DIAGONAL'
       const COMMITTED = 'COMMITTED'
+      const COMMIT_RADIUS = 'COMMIT_RADIUS'
 
       const dom = {}
       dom[WALLPAPER] = document.getElementById(WALLPAPER)
@@ -671,6 +736,8 @@
       dom[PROBLEM] = document.getElementById(PROBLEM)
       dom[PALETTE] = document.getElementById(PALETTE)
       dom[TOOLS] = document.getElementById(TOOLS)
+      daysElement = document.getElementById(DAYS)
+      hoursElement = document.getElementById(HOURS)
       dom[MARKS] = document.getElementById(MARKS)
       dom[SENSOR] = document.getElementById(SENSOR)
       
@@ -685,95 +752,95 @@
 
       const constraints = {}
       constraints[COMMITTED] = constraints[NONE] = (toolLocation) => toolLocation
-      constraints[VANISHING] = (toolLocation) => constrainLine(whiteboardState[VANISHING_POINT], whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
-      constraints[ARC] = (toolLocation) => constrainArc(whiteboardState[VANISHING_POINT], whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
-      constraints[HORIZONTAL] = (toolLocation) => new Vector2(toolLocation.x, whiteboardState[MOUSE_DOWN_LOCATION].y)
-      constraints[VERTICAL] = (toolLocation) => new Vector2(whiteboardState[MOUSE_DOWN_LOCATION].x, toolLocation.y)
+      constraints[VANISHING] = (toolLocation) => constrainLine(wState[VANISHING_POINT], wState[MOUSE_DOWN_LOCATION], toolLocation)
+      constraints[ARC] = (toolLocation) => constrainArc(wState[VANISHING_POINT], wState[MOUSE_DOWN_LOCATION], toolLocation)
+      constraints[HORIZONTAL] = (toolLocation) => new Vector2(toolLocation.x, wState[MOUSE_DOWN_LOCATION].y)
+      constraints[VERTICAL] = (toolLocation) => new Vector2(wState[MOUSE_DOWN_LOCATION].x, toolLocation.y)
       constraints[PARALLEL] = (toolLocation) => constrainLine(
-	whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2(
-	  Math.cos(whiteboardState[ANGLE]), 
-	  Math.sin(whiteboardState[ANGLE])
+	wState[MOUSE_DOWN_LOCATION].add(new Vector2(
+	  Math.cos(wState[ANGLE]), 
+	  Math.sin(wState[ANGLE])
 	)),
-	whiteboardState[MOUSE_DOWN_LOCATION],
+	wState[MOUSE_DOWN_LOCATION],
 	toolLocation
       )
       constraints[DOZENAL] = (toolLocation) => {
-	const angle = toolLocation.getAngle(whiteboardState[MOUSE_DOWN_LOCATION]) % Math.PI
+	const angle = toolLocation.getAngle(wState[MOUSE_DOWN_LOCATION]) % Math.PI
 	switch (true) {
 	case (angle > Math.PI * 23 / 24) || (angle <= Math.PI / 24):
-	  return new Vector2(toolLocation.x, whiteboardState[MOUSE_DOWN_LOCATION].y)
+	  return new Vector2(toolLocation.x, wState[MOUSE_DOWN_LOCATION].y)
 	  break
 	case (angle > Math.PI / 24) && (angle <= Math.PI * 3 / 24):
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI / 12 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI / 12 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	case (angle > Math.PI * 3 / 24) && (angle <= Math.PI * 5 / 24):
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI / 6 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI / 6 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	case (angle > Math.PI * 5 / 24) && (angle <= Math.PI * 7 / 24):
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI / 4 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI / 4 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	case (angle > Math.PI * 7 / 24) && (angle <= Math.PI * 9 / 24):
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI / 3 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI / 3 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	case (angle > Math.PI * 9 / 24) && (angle <= Math.PI * 11 / 24):
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 5 / 12 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 5 / 12 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	case (angle > Math.PI * 11 / 24) && (angle <= Math.PI * 13 / 24):
-	  return new Vector2(whiteboardState[MOUSE_DOWN_LOCATION].x, toolLocation.y)
+	  return new Vector2(wState[MOUSE_DOWN_LOCATION].x, toolLocation.y)
 	  break
 	case (angle > Math.PI * 13 / 24) && (angle <= Math.PI * 15 / 24):
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 7 / 12 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 7 / 12 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	case (angle > Math.PI * 15 / 24) && (angle <= Math.PI * 17 / 24):
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 2 / 3 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 2 / 3 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	case (angle > Math.PI * 17 / 24) && (angle <= Math.PI * 19 / 24):
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 3 / 4 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 3 / 4 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	case (angle > Math.PI * 19 / 24) && (angle <= Math.PI * 21 / 24):
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 5 / 6 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 5 / 6 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	case (angle > Math.PI * 21 / 24) && (angle <= Math.PI * 23 / 24):
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 11 / 12 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 11 / 12 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	}
       }
 
       constraints[VERTICAL_HORIZONTAL] = (toolLocation) => {
-	const angle = toolLocation.getAngle(whiteboardState[MOUSE_DOWN_LOCATION]) % Math.PI
+	const angle = toolLocation.getAngle(wState[MOUSE_DOWN_LOCATION]) % Math.PI
 	switch (true) {
 	case (angle > Math.PI * 3 / 4) || (angle <= Math.PI / 4):
-	  return new Vector2(toolLocation.x, whiteboardState[MOUSE_DOWN_LOCATION].y)
+	  return new Vector2(toolLocation.x, wState[MOUSE_DOWN_LOCATION].y)
 	  break
 	case (angle > Math.PI / 4) && (angle <= Math.PI * 3 / 4):
-	  return new Vector2(whiteboardState[MOUSE_DOWN_LOCATION].x, toolLocation.y)
+	  return new Vector2(wState[MOUSE_DOWN_LOCATION].x, toolLocation.y)
 	  break
 	}
       }
 
       constraints[HEXAGONAL] = (toolLocation) => {
-	const angle = toolLocation.getAngle(whiteboardState[MOUSE_DOWN_LOCATION]) % Math.PI
+	const angle = toolLocation.getAngle(wState[MOUSE_DOWN_LOCATION]) % Math.PI
 	switch (true) {
 	case angle <= Math.PI / 3:
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI / 6 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI / 6 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	case (angle > Math.PI / 3) && (angle <= Math.PI * 2 / 3):
-	  return new Vector2(whiteboardState[MOUSE_DOWN_LOCATION].x, toolLocation.y)
+	  return new Vector2(wState[MOUSE_DOWN_LOCATION].x, toolLocation.y)
 	  break
 	case (angle > Math.PI * 2 / 3) && (angle <= Math.PI):
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 5 / 6 })), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2({ angle: Math.PI * 5 / 6 })), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	}
       }
 
       constraints[DIAGONAL] = (toolLocation) => {
-	const angle = toolLocation.getAngle(whiteboardState[MOUSE_DOWN_LOCATION]) % Math.PI
+	const angle = toolLocation.getAngle(wState[MOUSE_DOWN_LOCATION]) % Math.PI
 	switch (true) {
 	case angle < Math.PI / 2:
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2(-1, 1)), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2(1, 1)), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	case angle > Math.PI / 2:
-	  return constrainLine(whiteboardState[MOUSE_DOWN_LOCATION].add(new Vector2(1, 1)), whiteboardState[MOUSE_DOWN_LOCATION], toolLocation)
+	  return constrainLine(wState[MOUSE_DOWN_LOCATION].add(new Vector2(-1, 1)), wState[MOUSE_DOWN_LOCATION], toolLocation)
 	  break
 	}
       }
@@ -787,82 +854,80 @@
 	    if (spaceIsDown) {
 	      layers[MARKS].save()
 	      layers[MARKS].moveTo(constraints[constraint](toolLocation).x, constraints[constraint](toolLocation).y)
-	      layers[MARKS].arc(constraints[constraint](toolLocation).x, constraints[constraint](toolLocation).y, whiteboardState[ERASE_RADIUS], 0, Math.PI*2, 2)
+	      layers[MARKS].arc(constraints[constraint](toolLocation).x, constraints[constraint](toolLocation).y, wState[ERASE_RADIUS], 0, Math.PI*2, 2)
 	      layers[MARKS].clip()
 	      clearLayer(MARKS)
 	      layers[MARKS].restore()
 	    } else {
 	      layers[MARKS].lineJoin = layers[MARKS].lineCap = 'round';
 	      layers[MARKS].beginPath();
-	      layers[MARKS].moveTo(whiteboardState[PRINT_HEAD_LOCATION].x, whiteboardState[PRINT_HEAD_LOCATION].y);
+	      layers[MARKS].moveTo(wState[PRINT_HEAD_LOCATION].x, wState[PRINT_HEAD_LOCATION].y);
 	      layers[MARKS].lineTo(constraints[constraint](toolLocation).x, constraints[constraint](toolLocation).y)
 	      layers[MARKS].stroke();
 	    }
-	    whiteboardState[PRINT_HEAD_LOCATION].setCoordinates(constraints[constraint](toolLocation).x, constraints[constraint](toolLocation).y)
+	    wState[PRINT_HEAD_LOCATION].setCoordinates(constraints[constraint](toolLocation).x, constraints[constraint](toolLocation).y)
 	  }
 	},
-	mouseUp: (toolLocation) => {
-	}
+	mouseUp: (toolLocation) => {}
       }
       tools[COMMITTED] = {
 	mouseDown: (toolLocation) => {
-	  whiteboardState[ANGLE] = null
+	  wState[ANGLE] = null
 	},
 	mouseMove: (toolLocation) => {
 	  const offset = new Vector2(toolLocation.x, toolLocation.y)
 	  if (mouseIsDown 
-	    && toolLocation.getDistance(whiteboardState[MOUSE_DOWN_LOCATION]) > 10
+	    && toolLocation.getDistance(wState[MOUSE_DOWN_LOCATION]) > wState[COMMIT_RADIUS]
 	    && constraints[constraint](toolLocation)) {
-	    if (whiteboardState[ANGLE] === null) {
-	      setWhiteboardState(ANGLE, toolLocation.getAngle(whiteboardState[MOUSE_DOWN_LOCATION]))
+	    if (wState[ANGLE] === null) {
+	      setWhiteboardState(ANGLE, toolLocation.getAngle(wState[MOUSE_DOWN_LOCATION]))
 	    }
 	    const printHeadLocation = constrainLine(
-	      whiteboardState[MOUSE_DOWN_LOCATION]
-		.add(new Vector2({ angle: whiteboardState[ANGLE] })), 
-	      whiteboardState[MOUSE_DOWN_LOCATION], 
+	      wState[MOUSE_DOWN_LOCATION]
+		.add(new Vector2({ angle: wState[ANGLE] })), 
+	      wState[MOUSE_DOWN_LOCATION], 
 	      toolLocation)
 	    if (spaceIsDown) {
 	      layers[MARKS].save()
 	      layers[MARKS].moveTo(constraints[PARALLEL](toolLocation).x, constraints[PARALLEL](toolLocation).y)
-	      layers[MARKS].arc(constraints[PARALLEL](toolLocation).x, constraints[PARALLEL](toolLocation).y, whiteboardState[ERASE_RADIUS], 0, Math.PI*2, 2)
+	      layers[MARKS].arc(constraints[PARALLEL](toolLocation).x, constraints[PARALLEL](toolLocation).y, wState[ERASE_RADIUS], 0, Math.PI*2, 2)
 	      layers[MARKS].clip()
 	      clearLayer(MARKS)
 	      layers[MARKS].restore()
 	    } else {
 	      layers[MARKS].lineJoin = layers[MARKS].lineCap = 'round';
 	      layers[MARKS].beginPath();
-	      layers[MARKS].moveTo(whiteboardState[PRINT_HEAD_LOCATION].x, whiteboardState[PRINT_HEAD_LOCATION].y);
+	      layers[MARKS].moveTo(wState[PRINT_HEAD_LOCATION].x, wState[PRINT_HEAD_LOCATION].y);
 	      layers[MARKS].lineTo(constraints[PARALLEL](toolLocation).x, constraints[PARALLEL](toolLocation).y)
 	      layers[MARKS].stroke();
 	    }
-	    whiteboardState[PRINT_HEAD_LOCATION].setCoordinates(constraints[PARALLEL](toolLocation).x, constraints[PARALLEL](toolLocation).y)
+	    wState[PRINT_HEAD_LOCATION].setCoordinates(constraints[PARALLEL](toolLocation).x, constraints[PARALLEL](toolLocation).y)
 	  }
 	},
-	mouseUp: (toolLocation) => {
-	}
+	mouseUp: (toolLocation) => {}
       }
       tools[ELLIPSE] = {
 	mouseDown: (toolLocation) => {
-	  const horizontal = (toolLocation.x - whiteboardState[MOUSE_DOWN_LOCATION].x) / 2
-	  const vertical = (toolLocation.y - whiteboardState[MOUSE_DOWN_LOCATION].y) / 2  
+	  const horizontal = (toolLocation.x - wState[MOUSE_DOWN_LOCATION].x) / 2
+	  const vertical = (toolLocation.y - wState[MOUSE_DOWN_LOCATION].y) / 2  
 	  const ellipse = document.createElementNS(svgNameSpace, 'ellipse')
 	  ellipse.setAttribute('id', 'ellipse')
 	  ellipse.setAttribute('stroke', layers[TOOLS].strokeStyle)
-	  ellipse.setAttribute('fill', whiteboardState[FILL_ACTIVE] ? layers[TOOLS].fillStyle : 'none')
-	  ellipse.setAttribute('stroke-width', whiteboardState[BRUSHES][whiteboardState[BRUSH]].width)
-	  ellipse.setAttribute('cx', whiteboardState[MOUSE_DOWN_LOCATION].x + horizontal)
-	  ellipse.setAttribute('cy', whiteboardState[MOUSE_DOWN_LOCATION].y + vertical)
+	  ellipse.setAttribute('fill', wState[FILL_ACTIVE] ? layers[TOOLS].fillStyle : 'none')
+	  ellipse.setAttribute('stroke-width', wState[BRUSHES][wState[BRUSH]].width)
+	  ellipse.setAttribute('cx', wState[MOUSE_DOWN_LOCATION].x + horizontal)
+	  ellipse.setAttribute('cy', wState[MOUSE_DOWN_LOCATION].y + vertical)
 	  ellipse.setAttribute('rx', Math.abs(horizontal))
 	  ellipse.setAttribute('ry', Math.abs(vertical))
 	  layers[TOOLS].appendChild(ellipse)    
 	},
 	mouseMove: (toolLocation) => {  
 	  if (mouseIsDown && constraints[constraint](toolLocation)) {
-	    const horizontal = (constraints[constraint](toolLocation).x - whiteboardState[MOUSE_DOWN_LOCATION].x) / 2
-	    const vertical = (constraints[constraint](toolLocation).y - whiteboardState[MOUSE_DOWN_LOCATION].y) / 2  
+	    const horizontal = (constraints[constraint](toolLocation).x - wState[MOUSE_DOWN_LOCATION].x) / 2
+	    const vertical = (constraints[constraint](toolLocation).y - wState[MOUSE_DOWN_LOCATION].y) / 2  
 	    const ellipse = layers[TOOLS].childNodes[0]
-	    ellipse.setAttribute('cx', whiteboardState[MOUSE_DOWN_LOCATION].x + horizontal)
-	    ellipse.setAttribute('cy', whiteboardState[MOUSE_DOWN_LOCATION].y + vertical)
+	    ellipse.setAttribute('cx', wState[MOUSE_DOWN_LOCATION].x + horizontal)
+	    ellipse.setAttribute('cy', wState[MOUSE_DOWN_LOCATION].y + vertical)
 	    ellipse.setAttribute('rx', Math.abs(horizontal))
 	    ellipse.setAttribute('ry', Math.abs(vertical))
 	  }
@@ -870,15 +935,15 @@
 	mouseUp: (toolLocation) => {
 	  if (constraints[constraint](toolLocation)) {
 	    layers[TOOLS].innerHTML = ''
-	    const horizontal = (constraints[constraint](toolLocation).x - whiteboardState[MOUSE_DOWN_LOCATION].x) / 2
-	    const vertical = (constraints[constraint](toolLocation).y - whiteboardState[MOUSE_DOWN_LOCATION].y) / 2
+	    const horizontal = (constraints[constraint](toolLocation).x - wState[MOUSE_DOWN_LOCATION].x) / 2
+	    const vertical = (constraints[constraint](toolLocation).y - wState[MOUSE_DOWN_LOCATION].y) / 2
 	    if (spaceIsDown) {
 	      layers[MARKS].save()
 	    }
 	    layers[MARKS].beginPath()
 	    layers[MARKS].ellipse(
-	      whiteboardState[MOUSE_DOWN_LOCATION].x + horizontal,
-	      whiteboardState[MOUSE_DOWN_LOCATION].y + vertical,
+	      wState[MOUSE_DOWN_LOCATION].x + horizontal,
+	      wState[MOUSE_DOWN_LOCATION].y + vertical,
 	      Math.abs(horizontal),
 	      Math.abs(vertical),
 	      0,
@@ -889,7 +954,7 @@
 	      layers[MARKS].clip()
 	      clearLayer(MARKS)
 	      layers[MARKS].restore()
-	    } else if (whiteboardState[FILL_ACTIVE]) {
+	    } else if (wState[FILL_ACTIVE]) {
 	      layers[MARKS].fill()
 	    } else {
 	      layers[MARKS].stroke()
@@ -902,37 +967,37 @@
 	  const rectangle = document.createElementNS(svgNameSpace, 'rect')
 	  rectangle.setAttribute('id', 'rectangle')
 	  rectangle.setAttribute('stroke', layers[TOOLS].strokeStyle)
-	  rectangle.setAttribute('fill', whiteboardState[FILL_ACTIVE] ? layers[TOOLS].fillStyle : 'none')
-	  rectangle.setAttribute('stroke-width', whiteboardState[BRUSHES][whiteboardState[BRUSH]].width)
-	  rectangle.setAttribute('x', Math.min(toolLocation.x, whiteboardState[MOUSE_DOWN_LOCATION].x))
-	  rectangle.setAttribute('y', Math.min(toolLocation.y, whiteboardState[MOUSE_DOWN_LOCATION].y))
-	  rectangle.setAttribute('width', Math.abs(toolLocation.x - whiteboardState[MOUSE_DOWN_LOCATION].x))
-	  rectangle.setAttribute('height', Math.abs(toolLocation.y - whiteboardState[MOUSE_DOWN_LOCATION].y))
+	  rectangle.setAttribute('fill', wState[FILL_ACTIVE] ? layers[TOOLS].fillStyle : 'none')
+	  rectangle.setAttribute('stroke-width', wState[BRUSHES][wState[BRUSH]].width)
+	  rectangle.setAttribute('x', Math.min(toolLocation.x, wState[MOUSE_DOWN_LOCATION].x))
+	  rectangle.setAttribute('y', Math.min(toolLocation.y, wState[MOUSE_DOWN_LOCATION].y))
+	  rectangle.setAttribute('width', Math.abs(toolLocation.x - wState[MOUSE_DOWN_LOCATION].x))
+	  rectangle.setAttribute('height', Math.abs(toolLocation.y - wState[MOUSE_DOWN_LOCATION].y))
 	  layers[TOOLS].appendChild(rectangle)
 	},
 	mouseMove: (toolLocation) => {  
 	  if (mouseIsDown && constraints[constraint](toolLocation)) {
-	    const width = Math.abs(constraints[constraint](toolLocation).x - whiteboardState[MOUSE_MOVE_LOCATION].x)
-	    const height = Math.abs(constraints[constraint](toolLocation).y - whiteboardState[MOUSE_MOVE_LOCATION].y)
+	    const width = Math.abs(constraints[constraint](toolLocation).x - wState[MOUSE_MOVE_LOCATION].x)
+	    const height = Math.abs(constraints[constraint](toolLocation).y - wState[MOUSE_MOVE_LOCATION].y)
 	    const rectangle = layers[TOOLS].childNodes[0]
-	    rectangle.setAttribute('x', Math.min(constraints[constraint](toolLocation).x, whiteboardState[MOUSE_DOWN_LOCATION].x))
-	    rectangle.setAttribute('y', Math.min(constraints[constraint](toolLocation).y, whiteboardState[MOUSE_DOWN_LOCATION].y))
-	    rectangle.setAttribute('width', Math.abs(constraints[constraint](toolLocation).x - whiteboardState[MOUSE_DOWN_LOCATION].x))
-	    rectangle.setAttribute('height', Math.abs(constraints[constraint](toolLocation).y - whiteboardState[MOUSE_DOWN_LOCATION].y))
+	    rectangle.setAttribute('x', Math.min(constraints[constraint](toolLocation).x, wState[MOUSE_DOWN_LOCATION].x))
+	    rectangle.setAttribute('y', Math.min(constraints[constraint](toolLocation).y, wState[MOUSE_DOWN_LOCATION].y))
+	    rectangle.setAttribute('width', Math.abs(constraints[constraint](toolLocation).x - wState[MOUSE_DOWN_LOCATION].x))
+	    rectangle.setAttribute('height', Math.abs(constraints[constraint](toolLocation).y - wState[MOUSE_DOWN_LOCATION].y))
 	  }
 	},
 	mouseUp: (toolLocation) => {
 	  if (constraints[constraint](toolLocation)) {
 	    layers[TOOLS].innerHTML = ''
 	    const rectangle = [
-	      Math.min(constraints[constraint](toolLocation).x, whiteboardState[MOUSE_DOWN_LOCATION].x), 
-	      Math.min(constraints[constraint](toolLocation).y, whiteboardState[MOUSE_DOWN_LOCATION].y), 
-	      Math.abs(constraints[constraint](toolLocation).x - whiteboardState[MOUSE_DOWN_LOCATION].x),
-	      Math.abs(constraints[constraint](toolLocation).y - whiteboardState[MOUSE_DOWN_LOCATION].y)
+	      Math.min(constraints[constraint](toolLocation).x, wState[MOUSE_DOWN_LOCATION].x), 
+	      Math.min(constraints[constraint](toolLocation).y, wState[MOUSE_DOWN_LOCATION].y), 
+	      Math.abs(constraints[constraint](toolLocation).x - wState[MOUSE_DOWN_LOCATION].x),
+	      Math.abs(constraints[constraint](toolLocation).y - wState[MOUSE_DOWN_LOCATION].y)
 	    ]
 	    if (spaceIsDown) {
 	      layers[MARKS].clearRect(...rectangle)
-	    } else if (whiteboardState[FILL_ACTIVE]) {
+	    } else if (wState[FILL_ACTIVE]) {
 	      layers[MARKS].fillRect(...rectangle)
 	    } else {
 	      layers[MARKS].strokeRect(...rectangle)
@@ -944,10 +1009,10 @@
 	mouseDown: (toolLocation) => {
 	  drawLine(
 	    TOOLS,
-	    whiteboardState[MOUSE_DOWN_LOCATION],
+	    wState[MOUSE_DOWN_LOCATION],
 	    toolLocation,
 	    new Color(layers[TOOLS].strokeStyle),
-	    whiteboardState[BRUSHES][whiteboardState[BRUSH]].width
+	    wState[BRUSHES][wState[BRUSH]].width
 	  )
 	},
 	mouseMove: (toolLocation) => {
@@ -955,10 +1020,10 @@
 	    layers[TOOLS].innerHTML = ''
 	    drawLine(
 	      TOOLS,
-	      whiteboardState[MOUSE_DOWN_LOCATION],
+	      wState[MOUSE_DOWN_LOCATION],
 	      constraints[constraint](toolLocation),
 	      new Color(layers[TOOLS].strokeStyle),
-	      whiteboardState[BRUSHES][whiteboardState[BRUSH]].width
+	      wState[BRUSHES][wState[BRUSH]].width
 	    )
 	  }
 	},
@@ -967,11 +1032,12 @@
 	    layers[TOOLS].innerHTML = ''
 	    drawLine(
 	      MARKS,
-	      whiteboardState[MOUSE_DOWN_LOCATION],
+	      wState[MOUSE_DOWN_LOCATION],
 	      constraints[constraint](toolLocation),
-	      whiteboardState[BRUSHES][whiteboardState[BRUSH]].color,
-	      whiteboardState[BRUSHES][whiteboardState[BRUSH]].width
+	      wState[BRUSHES][wState[BRUSH]].color,
+	      wState[BRUSHES][wState[BRUSH]].width
 	    )
+	    setWhiteboardState(ANGLE, constraints[constraint](toolLocation).getAngle(wState[MOUSE_DOWN_LOCATION]))
 	  }
 	}
       }
@@ -986,7 +1052,7 @@
 	mouseDown: (toolLocation) => {
 	  drawLine(
 	    TOOLS,
-	    whiteboardState[MOUSE_DOWN_LOCATION],
+	    wState[MOUSE_DOWN_LOCATION],
 	    new Vector2(toolLocation.x, toolLocation.y),
 	    new Color(layers[TOOLS].strokeStyle),
 	    6
@@ -996,78 +1062,116 @@
 	  layers[TOOLS].innerHTML = ''
 	  drawLine(
 	    TOOLS,
-	    whiteboardState[MOUSE_DOWN_LOCATION],
+	    wState[MOUSE_DOWN_LOCATION],
 	    new Vector2(toolLocation.x, toolLocation.y),
 	    new Color(layers[TOOLS].strokeStyle),
 	    6
 	  )
 	},
 	mouseUp: (toolLocation) => {
-	  const mouseDownVector = new Vector2(whiteboardState[MOUSE_DOWN_LOCATION])
-	  const mouseUpVector = new Vector2(whiteboardState[MOUSE_UP_LOCATION])
-	  const angle = whiteboardState[MOUSE_UP_LOCATION].scale({ x: 1, y: -1}).getAngle(whiteboardState[MOUSE_DOWN_LOCATION].scale({ x: 1, y: -1}))
+	  const mouseDownVector = new Vector2(wState[MOUSE_DOWN_LOCATION])
+	  const mouseUpVector = new Vector2(wState[MOUSE_UP_LOCATION])
+	  const angle = wState[MOUSE_UP_LOCATION].scale({ x: 1, y: -1}).getAngle(wState[MOUSE_DOWN_LOCATION].scale({ x: 1, y: -1}))
 	  const upUnits = [
-	    whiteboardState[MOUSE_UP_LOCATION],
-	    whiteboardState[MOUSE_UP_LOCATION].getSquareUnits(),
-	    whiteboardState[MOUSE_UP_LOCATION].getHexUnits()
-	  ][whiteboardState[GRID_TYPE].x]
+	    wState[MOUSE_UP_LOCATION],
+	    wState[MOUSE_UP_LOCATION].getSquareUnits(),
+	    wState[MOUSE_UP_LOCATION].getHexUnits(),
+	    wState[MOUSE_UP_LOCATION]
+	  ][wState[GRID_TYPE].x]
 	  const downUnits = [
-	    whiteboardState[MOUSE_DOWN_LOCATION],
-	    whiteboardState[MOUSE_DOWN_LOCATION].getSquareUnits(),
-	    whiteboardState[MOUSE_DOWN_LOCATION].getHexUnits()
-	  ][whiteboardState[GRID_TYPE].x]
+	    wState[MOUSE_DOWN_LOCATION],
+	    wState[MOUSE_DOWN_LOCATION].getSquareUnits(),
+	    wState[MOUSE_DOWN_LOCATION].getHexUnits(),
+	    wState[MOUSE_DOWN_LOCATION]
+	  ][wState[GRID_TYPE].x]
 
 	  const distance = downUnits.getDistance(upUnits)
 
 	  console.log(`measurements:\n  angle: ${(angle * 180 / Math.PI).toFixed(0)}°\n  distance: ${distance.toFixed(2)}`)
 	  setWhiteboardState(MEASUREMENT, new Vector2(
-	    whiteboardState[MOUSE_UP_LOCATION].x - whiteboardState[MOUSE_DOWN_LOCATION].x,
-	    whiteboardState[MOUSE_UP_LOCATION].y - whiteboardState[MOUSE_DOWN_LOCATION].y
+	    wState[MOUSE_UP_LOCATION].x - wState[MOUSE_DOWN_LOCATION].x,
+	    wState[MOUSE_UP_LOCATION].y - wState[MOUSE_DOWN_LOCATION].y
 	  ))
 	}
       }
 
-      tools[PALETTE] = {
+      tools[PALETTE] = {}
+      tools[PALETTE].mouseDown = tools[PALETTE].mouseMove = (toolLocation) => {
+	toolLocation = toolLocation.add(new Vector2(-window.scrollX, -window.scrollY))
+	if (
+	  mouseIsDown 
+	    && toolLocation.x <= colorWheelSideLength * 3 
+	    && toolLocation.y <= colorWheelSideLength
+	) {
+	  picked = readPalette(
+	    new Vector2(
+	      toolLocation.x % colorWheelSideLength,
+	      toolLocation.y
+	    ),
+	    [
+	      wState[BRUSHES][wState[BRUSH]].color,
+	      wState[OVERLAY_COLOR],
+	      wState[GRID_COLOR]
+	    ][Math.floor(toolLocation.x / colorWheelSideLength)],
+	    colorWheelSideLength
+	  )
+	  /* if (shiftIsDown && toolLocation.x < colorWheelSideLength) {
+	     let factor
+	     for (let p in picked.prop) {
+	     factor = picked.prop[p] / wState[BRUSHES][wState[BRUSH]].color[p]
+	     let brush
+	     while (brush < 11) {
+	     if (brush !== wState[BRUSH]) {
+	     wState[BRUSHES][brush].color[p] *= factor
+	     wState[BRUSHES][brush].color = new Color(wState[BRUSHES][brush].getHsla())
+	     }
+	     }
+	     }
+	     } */
+	  setColor(
+	    picked.color, 
+	    [layers[MARKS], dom[OVERLAY], layers[GRID]][Math.floor(toolLocation.x / colorWheelSideLength)]
+	  )
+	}
+      }
+      tools[PALETTE].mouseUp = (toolLocation) => {}
+
+      tools[GRID] = {
 	mouseDown: (toolLocation) => {},
 	mouseMove: (toolLocation) => {
-	  toolLocation = toolLocation.add(new Vector2(-window.scrollX, -window.scrollY))
-	  if (
-	    mouseIsDown 
-	      && toolLocation.x <= colorWheelSideLength * 3 
-	      && toolLocation.y <= colorWheelSideLength
-	  ) {
-	    picked = readPalette(
-	      new Vector2(
-		toolLocation.x % colorWheelSideLength,
-		toolLocation.y
-	      ),
-	      [
-		whiteboardState[BRUSHES][whiteboardState[BRUSH]].color,
-		whiteboardState[OVERLAY_COLOR],
-		whiteboardState[GRID_COLOR]
-	      ][Math.floor(toolLocation.x / colorWheelSideLength)],
-	      colorWheelSideLength
-	    )
-	    /* if (shiftIsDown && toolLocation.x < colorWheelSideLength) {
-	       let factor
-	       for (let p in picked.prop) {
-	       factor = picked.prop[p] / whiteboardState[BRUSHES][whiteboardState[BRUSH]].color[p]
-	       let brush
-	       while (brush < 11) {
-	       if (brush !== whiteboardState[BRUSH]) {
-	       whiteboardState[BRUSHES][brush].color[p] *= factor
-	       whiteboardState[BRUSHES][brush].color = new Color(whiteboardState[BRUSHES][brush].getHsla())
-	       }
-	       }
-	       }
-	       } */
-	    setColor(
-	      picked.color, 
-	      [layers[MARKS], dom[OVERLAY], layers[GRID]][Math.floor(toolLocation.x / colorWheelSideLength)]
-	    )
+	  const units = {
+	    square: new Vector2(
+	      (toolLocation.x - wState[VANISHING_POINT].x) / (wState[MOUSE_DOWN_LOCATION].x - wState[VANISHING_POINT].x),
+	      (toolLocation.y - wState[VANISHING_POINT].y) / (wState[MOUSE_DOWN_LOCATION].y - wState[VANISHING_POINT].y)
+	    ),
+	    hex: toolLocation.getDistance(wState[VANISHING_POINT]) / wState[MOUSE_DOWN_LOCATION].getDistance(wState[VANISHING_POINT])
 	  }
+	  clearLayer(GRID)
+	  drawGrid(wState[GRID_TYPE], {
+	    square: wState[SQUARE_GRID_UNITS].scale(units.square),
+	    hex: wState[HEX_GRID_UNIT] * units.hex
+	  })
+	  drawCircle(
+	    wState[VANISHING_POINT], 
+	    5, 
+	    wState[GRID_COLOR]
+	  )
 	},
-	mouseUp: (toolLocation) => {}
+	mouseUp: (toolLocation) => {
+	  const units = {
+	    square: new Vector2(
+	      (toolLocation.x - wState[VANISHING_POINT].x) / (wState[MOUSE_DOWN_LOCATION].x - wState[VANISHING_POINT].x),
+	      (toolLocation.y - wState[VANISHING_POINT].y) / (wState[MOUSE_DOWN_LOCATION].y - wState[VANISHING_POINT].y)
+	    ),
+	    hex: toolLocation.getDistance(wState[VANISHING_POINT]) / wState[MOUSE_DOWN_LOCATION].getDistance(wState[VANISHING_POINT])
+	  }
+	  if (wState[GRID_TYPE].x === 1) {
+	    setWhiteboardState(SQUARE_GRID_UNITS, wState[SQUARE_GRID_UNITS].scale(units.square))
+	  } else if (wState[GRID_TYPE].x === 2) {
+	    setWhiteboardState(HEX_GRID_UNIT, wState[HEX_GRID_UNIT] * units.hex)
+	  }
+	  setGrid()
+	}
       }
 
       // CONFIGURATION
@@ -1288,10 +1392,11 @@
       defaultState[GRID_TYPE] = new Vector2(0, 0)
       defaultState[GRID_WIDTH] = 2
       defaultState[GRID_COLOR] = new Color('rgba(0, 0, 0, 0.4)')
-      defaultState[VANISHING_POINT] = new Vector2(0, 0)
+      defaultState[TIME_PADDING] = new Vector2(80, 40)
       defaultState[PROBLEM_IMAGE] = 'problem.png'
       defaultState[PROBLEM_ACTIVE] = false
       defaultState[TOOL] = PAINT_BRUSH
+      defaultState[TOOLS_COLOR] = new Color('rgba(128, 128, 128, 0.6)')
       defaultState[BRUSH] = 0
       defaultState[BRUSHES] = [
 	{ width: 2, color: new Color('hsla(0, 0%, 0%, 1.0)') },
@@ -1312,13 +1417,16 @@
       defaultState[FONT_WIDTH] = 30
       defaultState[LINE_SPACING] = 60
       defaultState[ANGLE] = 1.2277723863741932
+      defaultState[COMMIT_RADIUS] = 120
       defaultState[ERASE_RADIUS] = 12
       defaultState[MOUSE_DOWN_LOCATION] = globalOrigin.copy()
       defaultState[MOUSE_MOVE_LOCATION] = globalOrigin.copy()
       defaultState[MOUSE_UP_LOCATION] = globalOrigin.copy()
       defaultState[PRINT_HEAD_LOCATION] = globalOrigin.copy()
       defaultState[MEASUREMENT] = globalOrigin.copy()
+      defaultState[MARKS_DATA] = 'untitled'
       defaultState[SAVED_MARKS_DATA] = {}
+      defaultState[SAVE_PROMPT_ACTIVE] = true
       
       // Prepare Objects for Grid
       const drawLine = function(layer, fv, tv, color, width) {
@@ -1328,17 +1436,40 @@
 	  line.setAttribute('y1', fv.y.toString())
 	  line.setAttribute('x2', tv.x.toString())
 	  line.setAttribute('y2', tv.y.toString())
-	  line.setAttribute('stroke', color ? color.getRgba() : whiteboardState[`${layer}_COLOR`].getRgba())
-	  line.setAttribute('stroke-width', width || whiteboardState[`${layer}_WIDTH`])
+	  line.setAttribute('stroke', color ? color.getRgba() : wState[`${layer}_COLOR`].getRgba())
+	  line.setAttribute('stroke-width', width || wState[`${layer}_WIDTH`])
 	  layers[layer].appendChild(line)
 	} else { // draw line on canvas
 	  layers[layer].beginPath()
 	  layers[layer].moveTo(fv.x, fv.y)
 	  layers[layer].lineTo(tv.x, tv.y)
-	  layers[layer].strokeStyle = color ? color.getRgba() : whiteboardState[`${layer}_COLOR`].getRgba()
+	  layers[layer].strokeStyle = color ? color.getRgba() : wState[`${layer}_COLOR`].getRgba()
 	  layers[layer].stroke()
 	}
-      };
+      }
+
+      const drawText = function(layer, content, position, color, size) {
+	if (layers[layer].nodeName === 'svg') { 
+	  const text = document.createElementNS(svgNameSpace, 'text')
+	  text.setAttribute('x', position.x.toString())
+	  text.setAttribute('y', position.y.toString())
+	  text.setAttribute('fill', color.getRgba() || wState[`${layer}_COLOR`])
+	  text.setAttribute('font-family', wState[FONT])
+	  text.setAttribute('font-size', `${size || fontSizes[wState[FONT_HEIGHT]]}px`)
+	  text.innerHTML = content
+	  layers[layer].appendChild(text)
+	} else { // draw text on canvas
+	  if (color !== undefined) {
+	    layers[layer].fillStyle = color.getRgba()
+	  }
+	  if (size !== undefined) {
+	    layers[layer].font = `${size}px ${wState[FONT]}`
+	  }
+	  layers[layer].fillText(content, position.x, position.y)
+	  layers[layer].fillStyle = wState[BRUSHES][wState[BRUSH]].color.getRgba()
+	  layers[layer].font = `${fontSizes[wState[FONT_HEIGHT]]}px ${wState[FONT]}`
+	}
+      }
       
       const drawCircle = (center, radius, color, filled=false) => {
 	const circle = document.createElementNS(svgNameSpace, 'circle')
@@ -1346,7 +1477,7 @@
 	circle.setAttribute('cy', center.y.toString())
 	circle.setAttribute('r', radius.toString())
 	circle.setAttribute('stroke', color.getRgba())
-	circle.setAttribute('stroke-width', whiteboardState[GRID_WIDTH].toString())
+	circle.setAttribute('stroke-width', wState[GRID_WIDTH].toString())
 	if (!filled) {
 	  circle.setAttribute('fill', 'transparent')
 	} else {
@@ -1365,10 +1496,10 @@
 	  rectangle.setAttribute('id', 'rectangle')
 	  rectangle.setAttribute('stroke', 'none')
 	  rectangle.setAttribute('fill', layers[TOOLS].fillStyle)
-	  rectangle.setAttribute('x', whiteboardState[PRINT_HEAD_LOCATION].x)
-	  rectangle.setAttribute('y', whiteboardState[PRINT_HEAD_LOCATION].y - fontSizes[whiteboardState[FONT_HEIGHT]])
-	  rectangle.setAttribute('width', whiteboardState[FONT_WIDTH])
-	  rectangle.setAttribute('height', fontSizes[whiteboardState[FONT_HEIGHT]])
+	  rectangle.setAttribute('x', wState[PRINT_HEAD_LOCATION].x)
+	  rectangle.setAttribute('y', wState[PRINT_HEAD_LOCATION].y - fontSizes[wState[FONT_HEIGHT]])
+	  rectangle.setAttribute('width', wState[FONT_WIDTH])
+	  rectangle.setAttribute('height', fontSizes[wState[FONT_HEIGHT]])
 	  layers[TOOLS].appendChild(rectangle)
 	}
       }
@@ -1395,76 +1526,95 @@
       }
 
       // DRAW GRIDS
-      const drawSquareDotsGrid = () => {
+      const drawSquareDotsGrid = (options) => {
+	const {
+	  origin=wState[VANISHING_POINT], 
+	  offset=wState[SQUARE_GRID_UNITS]
+	} = options
 	let head = new Vector2(
-	  whiteboardState[VANISHING_POINT].x % whiteboardState[SQUARE_GRID_UNITS].x,
-	  whiteboardState[VANISHING_POINT].y % whiteboardState[SQUARE_GRID_UNITS].y
+	  origin.x % offset.x,
+	  origin.y % offset.y
 	)
-	while (head.y < whiteboardState[BOARD_SIZE].y) {
-	  while (head.x < whiteboardState[BOARD_SIZE].x) {
+	while (head.y < wState[BOARD_SIZE].y) {
+	  while (head.x < wState[BOARD_SIZE].x) {
 	    drawCircle(
 	      head, 
-	      whiteboardState[GRID_WIDTH] / 2, 
-	      whiteboardState[GRID_COLOR], 
+	      wState[GRID_WIDTH] / 2, 
+	      wState[GRID_COLOR], 
 	      true
 	    )
-	    head.x += whiteboardState[SQUARE_GRID_UNITS].x
+	    head.x += offset.x
 	  }
-	  head.x = whiteboardState[VANISHING_POINT].x % whiteboardState[SQUARE_GRID_UNITS].x
-	  head.y += whiteboardState[SQUARE_GRID_UNITS].y
+	  head.x = origin.x % offset.x
+	  head.y += offset.y
 	}
       }
       
-      const drawLinedGrid = () => {
-	let head = whiteboardState[VANISHING_POINT].y % whiteboardState[SQUARE_GRID_UNITS].y
-	while (head < whiteboardState[BOARD_SIZE].y) {
+      const drawLinedGrid = (options) => {
+	const {
+	  origin=wState[VANISHING_POINT], 
+	  offset=wState[SQUARE_GRID_UNITS]
+	} = options
+      
+	let head = origin.y % offset.y
+	while (head < wState[BOARD_SIZE].y) {
 	  drawLine(
 	    GRID, 
 	    new Vector2(0, head), 
-	    new Vector2(whiteboardState[BOARD_SIZE].x, head)
+	    new Vector2(wState[BOARD_SIZE].x, head)
 	  )
-	  head += whiteboardState[SQUARE_GRID_UNITS].y
+	  head += offset.y
 	}
       }
 
-      const drawSquareGrid = () => {
+      const drawSquareGrid = (options) => {
+	const {
+	  origin=wState[VANISHING_POINT], 
+	  offset=wState[SQUARE_GRID_UNITS]
+	} = options
+      
 	let head = new Vector2(
-	  whiteboardState[VANISHING_POINT].x % whiteboardState[SQUARE_GRID_UNITS].x,
-	  whiteboardState[VANISHING_POINT].y % whiteboardState[SQUARE_GRID_UNITS].y
+	  origin.x % offset.x,
+	  origin.y % offset.y
 	)
-	while (head.x < whiteboardState[BOARD_SIZE].x) {
+	while (head.x < wState[BOARD_SIZE].x) {
 	  drawLine(
 	    GRID, 
 	    new Vector2(head.x, 0), 
-	    new Vector2(head.x, whiteboardState[BOARD_SIZE].y)
+	    new Vector2(head.x, wState[BOARD_SIZE].y)
 	  )
-	  head.x += whiteboardState[SQUARE_GRID_UNITS].x
+	  head.x += offset.x
 	}
-	while (head.y < whiteboardState[BOARD_SIZE].y) {
+	while (head.y < wState[BOARD_SIZE].y) {
 	  drawLine(
 	    GRID, 
 	    new Vector2(0, head.y), 
-	    new Vector2(whiteboardState[BOARD_SIZE].x, head.y)
+	    new Vector2(wState[BOARD_SIZE].x, head.y)
 	  )
-	  head.y += whiteboardState[SQUARE_GRID_UNITS].y
+	  head.y += offset.y
 	}
       }
       
-      const drawTriangleDotsGrid = () => {
+      const drawTriangleDotsGrid = (options) => {
+	const {
+	  origin=wState[VANISHING_POINT], 
+	  offset=wState[HEX_GRID_UNIT]
+	} = options
+      
 	const headIntervals = new Vector2 (
-	  whiteboardState[HEX_GRID_UNIT] * Math.sqrt(3),
-	  whiteboardState[HEX_GRID_UNIT]
+	  offset * Math.sqrt(3),
+	  offset
 	)
 	let head = new Vector2(
-	  (whiteboardState[VANISHING_POINT].x % headIntervals.x) - headIntervals.x,
-	  (whiteboardState[VANISHING_POINT].y % headIntervals.y) - headIntervals.y
+	  (origin.x % headIntervals.x) - headIntervals.x,
+	  (origin.y % headIntervals.y) - headIntervals.y
 	)
-	while (head.y < whiteboardState[BOARD_SIZE].y + headIntervals.y) {
-	  while (head.x < whiteboardState[BOARD_SIZE].x + headIntervals.x) {
+	while (head.y < wState[BOARD_SIZE].y + headIntervals.y) {
+	  while (head.x < wState[BOARD_SIZE].x + headIntervals.x) {
 	    drawCircle(
 	      head, 
-	      whiteboardState[GRID_WIDTH] / 2, 
-	      whiteboardState[GRID_COLOR], 
+	      wState[GRID_WIDTH] / 2, 
+	      wState[GRID_COLOR], 
 	      true
 	    )
 	    drawCircle(
@@ -1472,28 +1622,33 @@
 		head.x + headIntervals.x / 2,
 		head.y + headIntervals.y / 2
 	      ),
-	      whiteboardState[GRID_WIDTH] / 2, 
-	      whiteboardState[GRID_COLOR], 
+	      wState[GRID_WIDTH] / 2, 
+	      wState[GRID_COLOR], 
 	      true
 	    )
 	    head.x += headIntervals.x
 	  }
-	  head.x = (whiteboardState[VANISHING_POINT].x % headIntervals.x) - headIntervals.x
+	  head.x = (origin.x % headIntervals.x) - headIntervals.x
 	  head.y += headIntervals.y
 	}
       }
 
-      const drawHexGrid = () => {
+      const drawHexGrid = (options) => {
+	const {
+	  origin=wState[VANISHING_POINT], 
+	  offset=wState[HEX_GRID_UNIT]
+	} = options
+      
 	const headIntervals = new Vector2(
-	  whiteboardState[HEX_GRID_UNIT] * Math.sqrt(3),
-	  whiteboardState[HEX_GRID_UNIT] * 3
+	  offset * Math.sqrt(3),
+	  offset * 3
 	)
 	let head = new Vector2(
-	  (whiteboardState[VANISHING_POINT].x % headIntervals.x) - headIntervals.x,
-	  (whiteboardState[VANISHING_POINT].y % headIntervals.y) - headIntervals.y
+	  (origin.x % headIntervals.x) - headIntervals.x,
+	  (origin.y % headIntervals.y) - headIntervals.y
 	)
-	while (head.y < whiteboardState[BOARD_SIZE].y + headIntervals.y * 2 / 3) {
-	  while (head.x < whiteboardState[BOARD_SIZE].x + headIntervals.x / 2) {
+	while (head.y < wState[BOARD_SIZE].y + headIntervals.y * 2 / 3) {
+	  while (head.x < wState[BOARD_SIZE].x + headIntervals.x / 2) {
 	    drawLine(
 	      GRID, 
 	      new Vector2(head.x, head.y - headIntervals.y * 2 / 3), 
@@ -1526,22 +1681,27 @@
 	    )
 	    head.x += headIntervals.x
 	  }
-	  head.x = (whiteboardState[VANISHING_POINT].x % headIntervals.x) - headIntervals.x
+	  head.x = (origin.x % headIntervals.x) - headIntervals.x
 	  head.y += headIntervals.y
 	}
       }
 
-      const drawTriangleGrid = () => {
+      const drawTriangleGrid = (options) => {
+	const {
+	  origin=wState[VANISHING_POINT], 
+	  offset=wState[HEX_GRID_UNIT]
+	} = options
+      
 	const headIntervals = new Vector2(
-	  whiteboardState[HEX_GRID_UNIT] * Math.sqrt(3),
-	  whiteboardState[HEX_GRID_UNIT]
+	  offset * Math.sqrt(3),
+	  offset
 	)
 	let head = new Vector2(
-	  (whiteboardState[VANISHING_POINT].x % headIntervals.x) - headIntervals.x,
-	  (whiteboardState[VANISHING_POINT].y % headIntervals.y) - headIntervals.y
+	  (origin.x % headIntervals.x) - headIntervals.x,
+	  (origin.y % headIntervals.y) - headIntervals.y
 	)
-	while (head.y < whiteboardState[BOARD_SIZE].y + headIntervals.y * 2 / 3) {
-	  while (head.x < whiteboardState[BOARD_SIZE].x + headIntervals.x / 2) {
+	while (head.y < wState[BOARD_SIZE].y + headIntervals.y * 2 / 3) {
+	  while (head.x < wState[BOARD_SIZE].x + headIntervals.x / 2) {
 	    drawLine(
 	      GRID, 
 	      head,
@@ -1574,226 +1734,270 @@
 	    )
 	    head.x += headIntervals.x
 	  }
-	  head.x = (whiteboardState[VANISHING_POINT].x % headIntervals.x) - headIntervals.x
+	  head.x = (origin.x % headIntervals.x) - headIntervals.x
 	  head.y += headIntervals.y
 	}
       }
 
-      /* const weekdays = [
-	 'Sunday',
-	 'Monday',
-	 'Tuesday',
-	 'Wednesday',
-	 'Thursday',
-	 'Friday',nn
-	 'Saturday'
-       * ]
+      const weekdays = [
+	'Sunday',
+	'Monday',
+	'Tuesday',
+	'Wednesday',
+	'Thursday',
+	'Friday',
+	'Saturday'
+      ]
 
-       * const drawPlanner = () => {
+      const drawPlanner = (options) => {
+	const {
+	  origin=wState[VANISHING_POINT], 
+	  offset=new Vector2(
+	      (wState[BOARD_SIZE].x - wState[TIME_PADDING].x * 2) / 7,
+	      (wState[BOARD_SIZE].y - wState[TIME_PADDING].y) / 48
+	    )
+	} = options
+	Object.assign(daysElement.style, {
+	  width: `${wState[BOARD_SIZE].x - wState[TIME_PADDING].x}px`,
+	  top: '0px',
+	  left: `${wState[TIME_PADDING].x}px`,
+	  display: 'flex'
+	})
+	hoursElement.style.display = 'flex'
+	head = new Vector2(0, 0)
+	let pixels = origin.copy()
+	while (head.y < (wState[BOARD_SIZE].y / offset.y)) {
+	  pixels.y = head.y * offset.y + origin.y
+	  drawLine(
+	    GRID, 
+	    new Vector2(0, pixels.y), 
+	    new Vector2(wState[BOARD_SIZE].x, pixels.y),
+	    wState[GRID_COLOR],
+	    head.y % 12 === 0 
+	      ? 6 
+	      : head.y % 2 === 0
+	      ? 2
+	      : 0.5
+	  )
+	  head.y += 1
+	}
+	while (head.x < (wState[BOARD_SIZE].x / offset.x)) {
+	  pixels.x = head.x * offset.x + origin.x
+	  drawLine(
+	    GRID, 
+	    new Vector2(pixels.x, 0), 
+	    new Vector2(pixels.x, wState[BOARD_SIZE].y),
+	    wState[GRID_COLOR],
+	    2
+	  )
+	  head.x += 1
+	}
+      }
 
-	 // Draw lines for planner	
-	 layers[MARKS].font = `16px ${whiteboardState[FONT]}`
-	 layers[MARKS].lineWidth = 1
-	 const border = Math.min(whiteboardState[SCREEN_SIZE].x, whiteboardState[SCREEN_SIZE].y) / 36
-	 const cell = new Vector2(
-	 (whiteboardState[SCREEN_SIZE].x - (2 * border)) / 7,
-	 (whiteboardState[SCREEN_SIZE].y - (2* border)) / 18
-	 )
-	 const head = new Vector2(
-	 border,
-	 border
-	 )
-	 const drawHorizontal = () => {
-	 drawLine(
-	 layers[MARKS],
-	 head,
-	 new Vector2(
-	 whiteboardState[SCREEN_SIZE].x - border, 
-	 head.y
-	 ),
-	 layers[MARKS].strokeStyle
-	 )
-	 }
-	 const drawVertical = () => {
-	 drawLine(
-	 layers[MARKS],
-	 head,
-	 new Vector2(
-	 head.x, 
-	 whiteboardState[SCREEN_SIZE].y - border
-	 ),
-	 layers[MARKS].strokeStyle
-	 )
-	 }
-	 while (head.y < whiteboardState[SCREEN_SIZE].y) {
-	 drawHorizontal()
-	 head.y += cell.y
-	 }
-	 head.y = border
-	 let hour
-	 let weekday = 0
-	 while (head.x <= whiteboardState[SCREEN_SIZE].x) {
-	 drawVertical()
-	 layers[MARKS].clearRect(
-	 head.x + (border / 2),
-	 0,
-	 cell.x - border,
-	 whiteboardState[SCREEN_SIZE].y
-	 )
-	 hour = 6
-	 while (head.y <= whiteboardState[SCREEN_SIZE].y) {
-	 layers[MARKS].clearRect(
-	 head.x - 12, 
-	 head.y - 10, 
-	 24.8, 
-	 20
-	 )
-	 layers[MARKS].fillText(
-	 `${(hour < 10 ? '0' : '')}${hour}`, 
-	 head.x - 10, 
-	 head.y + 6
-	 )
-	 if (hour % 6 === 0) {
-	 layers[MARKS].font = `12px ${whiteboardState[FONT]}`
-	 layers[MARKS].fillText(
-	 weekdays[weekday % 7], 
-	 head.x + (cell.x / 2) - (weekdays[weekday % 7].length * 3.5), 
-	 head.y + 4
-	 )
-	 layers[MARKS].font = `16px ${whiteboardState[FONT]}`
- 	 }
-	 hour += 2
-	 head.y += cell.y * 2
-	 }
-	 head.x += cell.x
-	 head.y = border
-	 weekday += 1
-	 }
-	 
- 	 layers[MARKS].font = `${fontSizes[whiteboardState[FONT_HEIGHT]]}px ${whiteboardState[FONT]}`
-	 layers[MARKS].lineWidth = whiteboardState[BRUSHES][whiteboardState[BRUSH]].width
-       * }
+      drawCalendar = () => {
+	const today = new Date()
+	const hasLeapDay = (dt) => {
+	  if (dt.getMonth() === 1) {
+	    const year = dt.getFullYear()
+	    switch (true) {
+	    case (year % 400 === 0):
+	      return 1
+	      break
+	    case (year % 100 === 0):
+	      return 0
+	      break
+	    case (year % 4 === 0):
+	      return 1
+	      break
+	    default:
+	      return 0
+	    }
+	  } else {
+	    return 0
+	  }
+	} 
+	const months = [
+	  { name: 'January', days: 31 },
+	  { name: 'February', days: 28 },
+	  { name: 'March', days: 31 },
+	  { name: 'April', days: 30 },
+	  { name: 'May', days: 31 },
+	  { name: 'June', days: 30 },
+	  { name: 'July', days: 31 },
+	  { name: 'August', days: 31 },
+	  { name: 'September', days: 30 },
+	  { name: 'October', days: 31 },
+	  { name: 'November', days: 30 },
+	  { name: 'December', days: 31 }
+	]
+	const theseDays = months[today.getMonth()].days + hasLeapDay(today)
+	let daysOffset = (8 + today.getDay() - (today.getDate() % 7)) % 7
+	const rows = Math.ceil((daysOffset + theseDays) / 7)
+	const printOffset = new Vector2(
+	  (wState[BOARD_SIZE].x - wState[TIME_PADDING].x * 2) / 7,
+	  (wState[SCREEN_SIZE].y - wState[TIME_PADDING].y * 5) / rows
+	)
+	const printHead = new Vector2(
+	  wState[TIME_PADDING].x,
+	  wState[TIME_PADDING].y * 3
+	)
+	
+	drawLine(
+	  GRID,
+	  new Vector2(
+	    wState[TIME_PADDING].x,
+	    printHead.y
+	  ),
+	  new Vector2(
+	    wState[BOARD_SIZE].x - wState[TIME_PADDING].x,
+	    printHead.y
+	  ),
+	  wState[GRID_COLOR],
+	  6
+	)
+	printHead.y += wState[TIME_PADDING].y
+	while (printHead.y < wState[SCREEN_SIZE].y) {
+	  drawLine(
+	    GRID,
+	    new Vector2(
+	      wState[TIME_PADDING].x,
+	      printHead.y
+	    ),
+	    new Vector2(
+	      wState[BOARD_SIZE].x - wState[TIME_PADDING].x,
+	      printHead.y
+	    ),
+	    wState[GRID_COLOR],
+	    2
+	  )
+	  printHead.y += printOffset.y
+	}
+	
+	while (printHead.x < wState[BOARD_SIZE].x) {
+	  drawLine(
+	    GRID,
+	    new Vector2(
+	      printHead.x,
+	      wState[TIME_PADDING].y * 3
+	    ),
+	    new Vector2(
+	      printHead.x,
+	      wState[SCREEN_SIZE].y - wState[TIME_PADDING].y
+	    ),
+	    wState[GRID_COLOR],
+	    2
+	  )
+	  printHead.x += printOffset.x
+	}
+	
+	drawText(
+	  GRID, 
+	  `${months[today.getMonth()].name}, ${today.getFullYear()}`,
+	  new Vector2(
+	    wState[TIME_PADDING].x + 5,
+	    wState[TIME_PADDING].y + 50
+	  ),
+	  wState[GRID_COLOR],
+	  50
+	)
+	
+	weekdays.forEach((weekday, index) => {
+	  drawText(
+	    GRID, 
+	    weekday,
+	    new Vector2(
+	      wState[TIME_PADDING].x + (index * printOffset.x) + (printOffset.x / 2) - (weekday.length * 10 * 0.59),
+	      wState[TIME_PADDING].y * 4 - 10
+	    ),
+	    wState[GRID_COLOR],
+	    20
+	  )  
+	})
+	
+	printHead.setCoordinates(
+	  wState[TIME_PADDING].x + (printOffset.x * daysOffset),
+	  wState[TIME_PADDING].y * 4
+	)
+	let thisDate = 1
+	let halfSpace
+	while (thisDate <= theseDays) {
+	  halfSpace = thisDate < 10 ? 5.5 : 0
+	  drawText(
+	    GRID, 
+	    thisDate,
+	    new Vector2(
+	      printHead.x + halfSpace + 10,
+	      printHead.y + 24
+	    ),
+	    wState[GRID_COLOR],
+	    16
+	  )
+	  if ((thisDate + daysOffset) % 7 === 0) {
+	    printHead.setCoordinates(
+	      wState[TIME_PADDING].x,
+	      printHead.y + printOffset.y
+	    )
+	  } else {
+	    printHead.x += printOffset.x
+	  }
+	  thisDate ++
+	}
+      }
 
-       * // Draw calendar for current month
-       * const drawCalendar = () => {
-	 const today = new Date()
-	 const hasLeapDay = (dt) => {
-	 if (dt.getMonth() === 1) {
-	 const year = dt.getFullYear()
-	 if (year % 400 === 0) {
-	 return 1
-	 } else if (year % 100 === 0) {
-	 return 0
-	 } else if (year % 4 === 0) {
-	 return 1
-	 } else {
-	 return 0
-	 }
-	 } else {
-	 return 0
-	 }
-	 } 
-	 const months = [
-	 { name: 'January', days: 31 },
-	 { name: 'February', days: 28 },
-	 { name: 'March', days: 31 },
-	 { name: 'April', days: 30 },
-	 { name: 'May', days: 31 },
-	 { name: 'June', days: 30 },
-	 { name: 'July', days: 31 },
-	 { name: 'August', days: 31 },
-	 { name: 'September', days: 30 },
-	 { name: 'October', days: 31 },
-	 { name: 'November', days: 30 },
-	 { name: 'December', days: 31 }
-	 ]
-	 const theseDays = months[today.getMonth()].days + hasLeapDay(today)
+      drawClock = () => {
+	daysElement.style.display = hoursElement.style.display = 'none'
+	const clockCenter = wState[SCREEN_SIZE].scale(1 / 2)
+	const clockRadius = (wState[SCREEN_SIZE].y - wState[TIME_PADDING].y * 2) / 2
+	setInterval(() => {
+	  if (wState[GRID_TYPE].x === 3 && wState[GRID_TYPE].y === 2) {
+	    clearLayer(GRID)
+	    drawCircle(
+	      wState[VANISHING_POINT], 
+	      5, 
+	      wState[GRID_COLOR]
+	    )
+	    drawCircle(
+	      clockCenter,
+	      clockRadius,
+	      wState[GRID_COLOR],
+	      false
+	    )
+	    date = new Date
+	    const hourAngle = (Math.PI * (((date.getHours() % 12) / 6) + (date.getMinutes() / 360))) - Math.PI / 2
+	    const minuteAngle = (Math.PI * (((date.getMinutes()) / 30) + (date.getSeconds() / 1800))) - Math.PI / 2
+	    const secondAngle = (Math.PI * date.getSeconds() / 30) - Math.PI / 2
+	    drawLine(
+	      GRID,
+	      new Vector2({ magnitude: 30, angle: hourAngle + Math.PI }).add(clockCenter),
+	      new Vector2({ magnitude: clockRadius / 2, angle: hourAngle }).add(clockCenter),
+	      wState[GRID_COLOR],
+	      8
+	    )
+	    drawLine(
+	      GRID,
+	      new Vector2({ magnitude: 30, angle: minuteAngle + Math.PI }).add(clockCenter),
+	      new Vector2({ magnitude: clockRadius * 4 / 5, angle: minuteAngle }).add(clockCenter),
+	      wState[GRID_COLOR],
+	      8
+	    )
+	    drawLine(
+	      GRID,
+	      new Vector2({ magnitude: 40, angle: secondAngle + Math.PI }).add(clockCenter),
+	      new Vector2({ magnitude: clockRadius * 4 / 6, angle: secondAngle }).add(clockCenter),
+	      wState[GRID_COLOR],
+	      2
+	    )
+	  }
 
-	 // Draw lines for <calenda></calenda>r
-	 layers[MARKS].lineWidth = 2
-	 const border = Math.min(whiteboardState[SCREEN_SIZE].x, whiteboardState[SCREEN_SIZE].y) / 30
-	 let dayNumber = (8 + today.getDay() - (today.getDate() % 7)) % 7
-	 const rows = dayNumber + theseDays < 36 ? 5 : 6
-	 const cell = new Vector2(
-	 (whiteboardState[SCREEN_SIZE].x - (2 * border)) / 7,
-	 (whiteboardState[SCREEN_SIZE].y - ( 110 + border)) / rows
-	 )
-	 const head = new Vector2(
-	 border,
-	 110
-	 )
-	 const drawHorizontal = () => {
-	 drawLine(
-	 layers[MARKS],
-	 head,
-	 new Vector2(
-	 whiteboardState[SCREEN_SIZE].x - border, 
-	 head.y
-	 ),
-	 layers[MARKS].strokeStyle
-	 )
-	 }
-	 while (head.y < whiteboardState[SCREEN_SIZE].y) {
-	 drawHorizontal()
-	 head.y += cell.y
-	 }  
-	 head.y = 76
-	 drawHorizontal()
-	 while (head.x < whiteboardState[SCREEN_SIZE].x) {
-	 drawLine(
-	 layers[MARKS],
-	 head,
-	 new Vector2(
-	 head.x, 
-	 whiteboardState[SCREEN_SIZE].y - border
-	 ),
-	 layers[MARKS].strokeStyle
-	 )
-	 head.x += cell.x
-	 }
-	 
-	 // Print text onto calendar
-	 layers[MARKS].font = `40px ${whiteboardState[FONT]}`
-	 layers[MARKS].fillText(`${months[today.getMonth()].name}, ${today.getFullYear()}`, 42, 50)
-	 // day names
-	 layers[MARKS].font = `20px ${whiteboardState[FONT]}`
-	 head.setCoordinates(
-	 border + (cell.x / 2), 
-	 101
-	 )
-	 for (let dayName of weekdays) {
-	 layers[MARKS].fillText(dayName, head.x - (dayName.length * 5.8), head.y)
-	 head.x += cell.x
-	 }
-	 // date numbers
-	 let thisDate = 1
-	 head.setCoordinates(
-	 36 + (dayNumber * cell.x), 
-	 136
-	 )
-	 while (thisDate <= theseDays) {
-	 let halfSpace = thisDate < 10 ? 6.2 : 0
-	 layers[MARKS].fillText(thisDate, head.x + halfSpace, head.y)
-	 thisDate += 1
-	 dayNumber += 1
-	 if (dayNumber % 7 === 0) {
-	 head.setCoordinates(
-	 36,
-	 head.y + cell.y
-	 )
-	 } else {
-	 head.x += cell.x
-	 }
-	 }
-	 layers[MARKS].font = `${fontSizes[whiteboardState[FONT_HEIGHT]]}px ${whiteboardState[FONT]}`
-	 layers[MARKS].lineWidth = whiteboardState[BRUSHES][whiteboardState[BRUSH]].width
-       * } */
+
+	}, 1000);
+      }
     
       // REDUNDANT BRUSH WIDTH
       const setBrushWidth = (newBrushWidth) => {
-	whiteboardState[BRUSHES][whiteboardState[BRUSH]].width = newBrushWidth
-	layers[MARKS].lineWidth = whiteboardState[BRUSHES][whiteboardState[BRUSH]].width	
-	whiteboardState[ERASE_RADIUS] = 10 + layers[MARKS].lineWidth
+	wState[BRUSHES][wState[BRUSH]].width = newBrushWidth
+	layers[MARKS].lineWidth = wState[BRUSHES][wState[BRUSH]].width	
+	wState[ERASE_RADIUS] = 10 + layers[MARKS].lineWidth
       }
 
       const setColor = (c, layer=layers[MARKS]) => {
@@ -1807,7 +2011,7 @@
 	  break
 	case layers[GRID]:
 	  setWhiteboardState(GRID_COLOR, color)
-	  setGrid(whiteboardState[GRID_TYPE])
+	  setGrid()
 	  drawColorWheel(color, new Vector2(colorWheelSideLength * 2, 0))
 	  break
 	case layers[MARKS]:
@@ -1816,89 +2020,163 @@
 	  layers[MARKS].globalAlpha = color.alpha
 	  layers[TOOLS].strokeStyle = new Color(Object.assign({}, { ...color, alpha: 0.5 })).getRgba()
 	  layers[TOOLS].fillStyle = new Color(Object.assign({}, { ...color, alpha: 0.5 })).getRgba()
-	  const brushes = [...whiteboardState[BRUSHES]]
-	  brushes[whiteboardState[BRUSH]].color = color
+	  const brushes = [...wState[BRUSHES]]
+	  brushes[wState[BRUSH]].color = color
 	  setWhiteboardState(BRUSHES, brushes)
 	  drawColorWheel(color, new Vector2(0, 0))
 	}
       }
 
       const setLightness = (factor) => {
-	for (let brush of whiteboardState[BRUSHES]) {
+	for (let brush of wState[BRUSHES]) {
 	 brush.color.modify({ lum: bound(brush.color.lum * factor) })
 	}
-	setWhiteboardState(BRUSHES, whiteboardState[BRUSHES])
+	setWhiteboardState(BRUSHES, wState[BRUSHES])
       }
 
-      const setGrid = (settings) => {
+      const drawGrid = (type, units) => {
+	const getCoefficient = (pixels, factor) => Math.pow(10, 1 - Math.floor(Math.log10(pixels / factor)))
+	if (storedFunctions.length > 0) {
+	  for (let storedFunction of storedFunctions) {
+	    plotFunction(storedFunction.f, storedFunction.style, units, true)
+	  }
+	}
+	return [
+	  [
+	    drawSquareDotsGrid,
+	    drawLinedGrid,
+	    drawSquareGrid,
+	  ],
+	  [
+	    drawTriangleDotsGrid,
+	    drawHexGrid,
+	    drawTriangleGrid
+	  ],
+	  [
+	    drawCalendar,
+	    drawPlanner,
+	    drawClock
+	  ]
+	][type.x - 1][type.y]([
+	  {
+	    origin: wState[VANISHING_POINT],
+	    offset: new Vector2(
+	      units.square.x * getCoefficient(units.square.x, 3), 
+	      units.square.y * getCoefficient(units.square.y, 3)
+	    )},
+	  { 
+	    origin: wState[VANISHING_POINT],
+	    offset: units.hex * getCoefficient(units.hex, 4)
+	  },
+	  {
+	    origin: new Vector2(
+	      wState[TIME_PADDING].x,
+	      wState[TIME_PADDING].y
+	    ),
+	    offset: new Vector2(
+	      (wState[BOARD_SIZE].x - wState[TIME_PADDING].x) / 7,
+	      (wState[BOARD_SIZE].y - wState[TIME_PADDING].y) / 48
+	    )
+	  }
+	][type.x - 1])
+      }
+
+      const setGrid = (type=wState[GRID_TYPE]) => {
+	clearLayer(GRID)	
 	if (!isTyping) {
-	  clearLayer(GRID)
-	  if (settings.x === 0) {
-	    whiteboardState[GRID_TYPE].setCoordinates(0, settings.y)
+	  if (type.x === 0) {
+	    hoursElement.style.display = daysElement.style.display = 'none'
+	    wState[GRID_TYPE].setCoordinates(0, type.y)
 	    setWhiteboardState(GRID_TYPE)
 	  } else {
-	    [
-	      [
-		drawSquareDotsGrid,
-		drawLinedGrid,
-		drawSquareGrid,
-	      ],
-	      [
-		drawTriangleDotsGrid,
-		drawHexGrid,
-		drawTriangleGrid
-	      ]
-	    ][settings.x - 1][settings.y]()
-	    whiteboardState[GRID_TYPE].setCoordinates(settings)
+	    drawGrid(type, {
+	      square: wState[SQUARE_GRID_UNITS],
+	      hex: wState[HEX_GRID_UNIT],
+	      time: [
+		// getCalendarCell(),
+		new Vector2(
+		  (wState[BOARD_SIZE].x - wState[TIME_PADDING].x * 3) / 7,
+		  (wState[BOARD_SIZE].y - wState[TIME_PADDING].y) / 24,
+		),
+		new Vector2(
+		  (wState[BOARD_SIZE].x - wState[TIME_PADDING].x * 3) / 7,
+		  (wState[BOARD_SIZE].y - wState[TIME_PADDING].y) / 24,
+		),
+		new Vector2(
+		  (wState[BOARD_SIZE].x - wState[TIME_PADDING].x * 3) / 7,
+		  (wState[BOARD_SIZE].y - wState[TIME_PADDING].y) / 24,
+		)
+		// wState[HEX_GRID_UNIT]
+	      ][type.y]
+	    })
+	    wState[GRID_TYPE].setCoordinates(type)
 	    setWhiteboardState(GRID_TYPE)
 	    drawCircle(
-	      whiteboardState[VANISHING_POINT], 
+	      wState[VANISHING_POINT], 
 	      5, 
-	      whiteboardState[GRID_COLOR]
+	      wState[GRID_COLOR]
 	    )
 	  }
 	}
       }
+      
+      const setSquareGridUnits = (xUnit=wState[SQUARE_GRID_UNITS].getDistance() / Math.sqrt(2), yUnit) => {
+	setWhiteboardState(
+	  SQUARE_GRID_UNITS,
+	  new Vector2(xUnit, yUnit || xUnit)
+	)
+	setGrid()
+      }
 
       const setVanishingPoint = (x, y) => {
 	clearLayer(GRID)
-	whiteboardState[VANISHING_POINT].setCoordinates(x, y)
-	setGrid(whiteboardState[GRID_TYPE])
-	console.log(`vanish: (${whiteboardState[VANISHING_POINT].x}, ${whiteboardState[VANISHING_POINT].y})`)
-	setWhiteboardState(VANISHING_POINT, whiteboardState[VANISHING_POINT])
-	setGrid(whiteboardState[GRID_TYPE])
+	wState[VANISHING_POINT].setCoordinates(x, y)
+	setGrid()
+	console.log(`vanish: (${wState[VANISHING_POINT].x}, ${wState[VANISHING_POINT].y})`)
+	setWhiteboardState(VANISHING_POINT, wState[VANISHING_POINT])
+	setGrid()
       }
 
       const addAngle = (degrees) => {
-	setWhiteboardState(ANGLE, whiteboardState[ANGLE] + (degrees * Math.PI / 180))
+	setWhiteboardState(ANGLE, wState[ANGLE] + (degrees * Math.PI / 180))
       }
 
-      const plotFunction = (cb, brush=whiteboardState[BRUSHES][whiteboardState[BRUSH]]) => {
-	whiteboardState[FUNCTIONS].push(cb)
+      const plotFunction = (
+	cb, 
+	brush=wState[BRUSHES][wState[BRUSH]], 
+	units={
+	  square: wState[SQUARE_GRID_UNITS],
+	  hex: wState[HEX_GRID_UNIT]
+	},
+	fromStoredFunctions=false
+      ) => {
+	if (!fromStoredFunctions) {
+	  storedFunctions.push({ f:cb, style: { ...brush } })
+	}
 	let plotHeadLocation
 	let previousPlotHeadLocation
-	switch (whiteboardState[GRID_TYPE].x) {
+	switch (wState[GRID_TYPE].x) {
 	case 1:
 	  let nextPlotHeadX
 	  plotHeadLocation = new Vector2(
-	    - whiteboardState[VANISHING_POINT].x / whiteboardState[SQUARE_GRID_UNITS].x,
-	    cb(whiteboardState[VANISHING_POINT].x / whiteboardState[SQUARE_GRID_UNITS].x)
+	    - wState[VANISHING_POINT].x / units.square.x,
+	    cb(wState[VANISHING_POINT].x / units.square.x)
 	  )
 	  previousPlotHeadLocation = plotHeadLocation.copy()
-	  while (plotHeadLocation.x <= whiteboardState[BOARD_SIZE].add(whiteboardState[VANISHING_POINT].scale(-1)).getSquareUnits().x) {
+	  while (plotHeadLocation.x <= wState[BOARD_SIZE].add(wState[VANISHING_POINT].scale(-1)).getSquareUnits().x) {
 	    drawLine(
 	      GRID,
 	      previousPlotHeadLocation
-		.scale({ x: whiteboardState[SQUARE_GRID_UNITS].x, y: -whiteboardState[SQUARE_GRID_UNITS].y })
-		.add(whiteboardState[VANISHING_POINT]),
+		.scale({ x: units.square.x, y: -units.square.y })
+		.add(wState[VANISHING_POINT]),
 	      plotHeadLocation
-		.scale({ x: whiteboardState[SQUARE_GRID_UNITS].x, y: -whiteboardState[SQUARE_GRID_UNITS].y })
-		.add(whiteboardState[VANISHING_POINT]),
+		.scale({ x: units.square.x, y: -units.square.y })
+		.add(wState[VANISHING_POINT]),
 	      brush.color,
 	      brush.width
 	    )
 	    previousPlotHeadLocation.setCoordinates(plotHeadLocation)
-	    nextPlotHeadX = plotHeadLocation.x + (1 / whiteboardState[SQUARE_GRID_UNITS].x)
+	    nextPlotHeadX = plotHeadLocation.x + (1 / units.square.x)
 	    plotHeadLocation.setCoordinates({ 
 	      x: nextPlotHeadX,
 	      y: cb(nextPlotHeadX)
@@ -1916,11 +2194,11 @@
 	      drawLine(
 		GRID,
 		previousPlotHeadLocation
-		  .scale({ x: whiteboardState[HEX_GRID_UNIT], y: -whiteboardState[HEX_GRID_UNIT] })
-		  .add(whiteboardState[VANISHING_POINT]),
+		  .scale({ x: units.hex, y: -units.hex })
+		  .add(wState[VANISHING_POINT]),
 		plotHeadLocation
-		  .scale({ x: whiteboardState[HEX_GRID_UNIT], y: -whiteboardState[HEX_GRID_UNIT] })
-		  .add(whiteboardState[VANISHING_POINT]),
+		  .scale({ x: units.hex, y: -units.hex })
+		  .add(wState[VANISHING_POINT]),
 		brush.color,
 		brush.width
 	      )
@@ -1934,6 +2212,10 @@
 	  }
 	  break
 	}
+      }
+      const clearFunctions = () => {
+	storedFunctions = []
+	setGrid()
       }
 
       // Typing
@@ -1952,8 +2234,8 @@
 	  'Escape',
 	  'Delete'
 	].includes(e.key)) {
-	  layers[MARKS].fillText(e.key, whiteboardState[PRINT_HEAD_LOCATION].x, whiteboardState[PRINT_HEAD_LOCATION].y)
-	  whiteboardState[PRINT_HEAD_LOCATION].x += whiteboardState[FONT_WIDTH]
+	  layers[MARKS].fillText(e.key, wState[PRINT_HEAD_LOCATION].x, wState[PRINT_HEAD_LOCATION].y)
+	  wState[PRINT_HEAD_LOCATION].x += wState[FONT_WIDTH]
 	  drawTextCursor()
 	}
       }
@@ -1964,9 +2246,9 @@
 	  setWhiteboardState(FONT, font)
 	}
 	const heightInPixels = fontSizes[heightIndex]
-	whiteboardState[FONT_WIDTH] = heightInPixels * 0.62
-	whiteboardState[LINE_SPACING] = heightInPixels * 1.25
-	layers[MARKS].font = `${heightInPixels}px ${whiteboardState[FONT]}`
+	wState[FONT_WIDTH] = heightInPixels * 0.62
+	wState[LINE_SPACING] = heightInPixels * 1.25
+	layers[MARKS].font = `${heightInPixels}px ${wState[FONT]}`
       }
       
       const offset = globalOrigin.copy()
@@ -1979,7 +2261,7 @@
 	}
 	const slope = {
 	  b: (b.y - a.y) / (b.x - a.x),
-	  c: (b.x - a.x) / (b.y - a.y) // the slope of the second line is the negative inverse of the first, but this is left positive to simplify thewhiteboardState[MOUSE_DOWN_LOCATION] equation.
+	  c: (b.x - a.x) / (b.y - a.y) // the slope of the second line is the negative inverse of the first, but this is left positive to simplify thewState[MOUSE_DOWN_LOCATION] equation.
 	}
 	const xOffset = ((c.y - a.y) + ((c.x - a.x) * slope.c)) / (slope.b + slope.c)
 	return new Vector2(
@@ -2005,23 +2287,23 @@
       dom[SENSOR].addEventListener('mousedown', (e) => {
 	mouseIsDown = true
 	const mouseLocation = new Vector2(e.offsetX, e.offsetY)
-	whiteboardState[MOUSE_DOWN_LOCATION].setCoordinates(mouseLocation)
-	setWhiteboardState(MOUSE_DOWN_LOCATION, whiteboardState[MOUSE_DOWN_LOCATION])
-	whiteboardState[PRINT_HEAD_LOCATION].setCoordinates(mouseLocation)
-	tools[whiteboardState[TOOL]].mouseDown(mouseLocation)
+	wState[MOUSE_DOWN_LOCATION].setCoordinates(mouseLocation)
+	setWhiteboardState(MOUSE_DOWN_LOCATION, wState[MOUSE_DOWN_LOCATION])
+	wState[PRINT_HEAD_LOCATION].setCoordinates(mouseLocation)
+	tools[wState[TOOL]].mouseDown(mouseLocation)
       })
       dom[SENSOR].addEventListener('mousemove', (e) => {
 	const mouseLocation = new Vector2(e.offsetX, e.offsetY)
-	whiteboardState[MOUSE_MOVE_LOCATION].setCoordinates(mouseLocation)
+	wState[MOUSE_MOVE_LOCATION].setCoordinates(mouseLocation)
 	if (mouseIsDown) {
-	  tools[whiteboardState[TOOL]].mouseMove(mouseLocation)
+	  tools[wState[TOOL]].mouseMove(mouseLocation)
 	}
       })
       dom[SENSOR].addEventListener('mouseup', (e) => {
 	const mouseLocation = new Vector2(e.offsetX, e.offsetY)
 	mouseIsDown = false
-	whiteboardState[MOUSE_UP_LOCATION].setCoordinates(mouseLocation)
-	tools[whiteboardState[TOOL]].mouseUp(mouseLocation)
+	wState[MOUSE_UP_LOCATION].setCoordinates(mouseLocation)
+	tools[wState[TOOL]].mouseUp(mouseLocation)
       })
 
       document.body.addEventListener("touchstart", function (e) {
@@ -2029,19 +2311,19 @@
 	  e.preventDefault()
 	  const touchLocation = new Vector2(e.pageX, e.pageY)
 	  mouseIsDown = true
-	  whiteboardState[MOUSE_DOWN_LOCATION].setCoordinates(touchLocation)
-	  setWhiteboardState(MOUSE_DOWN_LOCATION, whiteboardState[MOUSE_DOWN_LOCATION])
-	  whiteboardState[PRINT_HEAD_LOCATION].setCoordinates(touchLocation)
-	  tools[whiteboardState[TOOL]].mouseDown(touchLocation)
+	  wState[MOUSE_DOWN_LOCATION].setCoordinates(touchLocation)
+	  setWhiteboardState(MOUSE_DOWN_LOCATION, wState[MOUSE_DOWN_LOCATION])
+	  wState[PRINT_HEAD_LOCATION].setCoordinates(touchLocation)
+	  tools[wState[TOOL]].mouseDown(touchLocation)
 	}
       }, { passive: false })
       document.body.addEventListener("touchmove", function (e) {
 	if (e.target === dom[SENSOR]) {
 	  e.preventDefault()
 	  const touchLocation = new Vector2(e.pageX, e.pageY)
-	  whiteboardState[MOUSE_MOVE_LOCATION].setCoordinates(touchLocation)
+	  wState[MOUSE_MOVE_LOCATION].setCoordinates(touchLocation)
 	  if (mouseIsDown) {
-	    tools[whiteboardState[TOOL]].mouseMove(touchLocation)
+	    tools[wState[TOOL]].mouseMove(touchLocation)
 	  }
 	}
       }, { passive: false });
@@ -2050,18 +2332,20 @@
 	  e.preventDefault()
 	  const touchLocation = new Vector2(e.pageX, e.pageY)
 	  mouseIsDown = false
-	  whiteboardState[MOUSE_UP_LOCATION].setCoordinates(touchLocation)
-	  tools[whiteboardState[TOOL]].mouseUp(touchLocation)
+	  wState[MOUSE_UP_LOCATION].setCoordinates(touchLocation)
+	  tools[wState[TOOL]].mouseUp(touchLocation)
 	}
       }, { passive: false })
 
       dom[SENSOR].addEventListener('mouseup', (event) => {
 	mouseIsDown = false;
 	isDrawing = false
-	let mouse = new Vector2(whiteboardState[MOUSE_MOVE_LOCATION].x, whiteboardState[MOUSE_MOVE_LOCATION].y)
-	let width = mouse.x -whiteboardState[MOUSE_DOWN_LOCATION].x
-	let height = mouse.y -whiteboardState[MOUSE_DOWN_LOCATION].y
+	let mouse = new Vector2(wState[MOUSE_MOVE_LOCATION].x, wState[MOUSE_MOVE_LOCATION].y)
+	let width = mouse.x -wState[MOUSE_DOWN_LOCATION].x
+	let height = mouse.y -wState[MOUSE_DOWN_LOCATION].y
       })
+
+      
 
       dom[SENSOR].addEventListener('mouseout', () => {
 	isDrawing = false
@@ -2071,6 +2355,11 @@
       dom[SENSOR].addEventListener('contextmenu', (e) => {
 	isDrawing = false
 	mouseIsDown = false
+      })
+
+      window.addEventListener('scroll', (e) => {
+	hoursElement.style.top = `${-window.pageYOffset + 40}px`
+	daysElement.style.left = `${-window.pageXOffset + 80}px`
       })
 
       document.addEventListener('keydown', (event) => {
@@ -2084,13 +2373,13 @@
 	       alert('CONTROLS:\n\nShift: bold\nSpacebar: eraser\nz: box-eraser\nEscape: clear screen\ni: copy input\no: paste output\n\nCOLORS:\nr, g, b: red, green, blue\nc, m, y, k: cyan, magenta, yellow, black\nw: white\nf: color picker\n\nPEN SIZE:\n=: increase line-width\n-: decrease line-width\n\n')
 	       alert('IMAGE:\np: reset image\n\nBACKGROUND OPACITY:\n`: clear background\n1 - 9: 0.1 - 0.9 opacity\n0: full opacity\n\nGRIDS:\nt: triangle grid\ns: square grid\nx: hexagonal grid\nd: square dots grid\n;: lined grid\n\nGRID COLOR:\nj: toggle white/black\nn: cycle through colors\n\nSLIDESHOW:\n(set theme to slideshow)\n.: forward one slide\n,: back one slide')
 	       alert('CONSTRAINTS:\nUp: constrain to vertical line\nLeft: constrain to horizontal line\n/: constrain to parallel to line\nDown: constrain to vanishing point line\nRight: constrain to arc about vanishing point\nv: set vanishing point to mouse position\n\nTEXT:\na: enter text-mode\nesc: exit text-mode\n\nSHAPES\nq: draw rectangle\nl: draw line\ne: draw ellipse')
-	       alert(`QUERY PARAMETERS: \ntitle: ${document.title}\ntheme: ${initialTheme}\nimage: ${imageURL}\nscreen: ${whiteboardState[SCREEN_SIZE].x} x ${whiteboardState[SCREEN_SIZE].y}\npens: ${query.pens || 'none'}\npenColor: ${pen.strokeStyle}\npenWidth: ${pen.lineWidth}\ngridColor: ${grid.strokeStyle}\ngridWidth: ${grid.lineWidth}\nbackgroundOpacity: ${currentBackgroundOpacity}\nbackground: ${background.fillStyle}\ncells: ${cells}\nzoom: ${zoom}\ngridtype: ${gridType}\neraseRadius: ${whiteboardState[ERASE_RADIUS]}`)
+	       alert(`QUERY PARAMETERS: \ntitle: ${document.title}\ntheme: ${initialTheme}\nimage: ${imageURL}\nscreen: ${wState[SCREEN_SIZE].x} x ${wState[SCREEN_SIZE].y}\npens: ${query.pens || 'none'}\npenColor: ${pen.strokeStyle}\npenWidth: ${pen.lineWidth}\ngridColor: ${grid.strokeStyle}\ngridWidth: ${grid.lineWidth}\nbackgroundOpacity: ${currentBackgroundOpacity}\nbackground: ${background.fillStyle}\ncells: ${cells}\nzoom: ${zoom}\ngridtype: ${gridType}\neraseRadius: ${wState[ERASE_RADIUS]}`)
 	       }
 	       break; */
 	  case 't':
 	  case 'T':
 	    if (!isTyping) {
-	      lastTool = whiteboardState[TOOL]
+	      lastTool = wState[TOOL]
 	      setWhiteboardState(TOOL, TEXT)
 	    
 	      isTyping = true
@@ -2099,36 +2388,43 @@
 	    break;
 	  case 'g':
 	  case 'G':
-	    whiteboardState[GRID_TYPE].setCoordinates((whiteboardState[GRID_TYPE].x + 1) % 3, whiteboardState[GRID_TYPE].y)
-	    setGrid(whiteboardState[GRID_TYPE])
-	    break;
+	    wState[GRID_TYPE].setCoordinates((wState[GRID_TYPE].x + 1) % 4, wState[GRID_TYPE].y)
+	    setGrid()
+	    break
 	  case 'j':
 	  case 'J':
-	    whiteboardState[GRID_TYPE].setCoordinates(whiteboardState[GRID_TYPE].x, (whiteboardState[GRID_TYPE].y + 1) % 3)
-	    setGrid(whiteboardState[GRID_TYPE])
+	    wState[GRID_TYPE].setCoordinates(wState[GRID_TYPE].x, (wState[GRID_TYPE].y + 1) % 3)
+	    setGrid()
 	    break;
 	  case 'i':
 	  case 'I':
 	    if (!isTyping) {
-	      dom[WALLPAPER].style.background = `url(${getCollection(whiteboardState[SCREEN_SIZE])})`
+	      wState[WALLPAPER_IMAGE] = getCollection(wState[SCREEN_SIZE])
+	      setImage(WALLPAPER, wState[WALLPAPER_IMAGE])
 	    }
 	    break
 	  case 's':
 	  case 'S':
 	    if (!isTyping) {
-	      whiteboardState[
-		SAVED_MARKS_DATA][query[MARKS_DATA] 
-		  || prompt('Please name this data', 'untitled')
-		] = dom[MARKS].toDataURL('image/png')
-	      setWhiteboardState(SAVED_MARKS_DATA, whiteboardState[SAVED_MARKS_DATA])
-	      console.log(`Saved ${query[MARKS_DATA]}`)
+	      let name
+	      if (wState[SAVE_PROMPT_ACTIVE]) {
+		name = prompt('Please name this data', wState[MARKS_DATA])
+	      } else {
+		name = wState[MARKS_DATA]
+	      }
+	      if (name !== null) {
+		wState[SAVED_MARKS_DATA][name] = dom[MARKS].toDataURL('image/png')
+		setWhiteboardState(SAVED_MARKS_DATA, wState[SAVED_MARKS_DATA])
+		console.log(`Saved ${name}`)
+	      }
+	      dom[MARKS].style.zIndex = "10";
 	    }
 	    break
 	  case '.':
 	    if (!isTyping) {
 	      slide++
 		clearLayer(WALLPAPER)
-	      setImage(slideshow[slide % slideshow.length], dom[WALLPAPER])
+	      setImage(WALLPAPER, slideshow[slide % slideshow.length])
 	      document.title = parseFilename(slideshow[slide % slideshow.length])
 	    }
 	    break
@@ -2136,42 +2432,42 @@
 	    if (!isTyping) {
 	      slide--
 		clearLayer(WALLPAPER)
-	      setImage(slideshow[slide % slideshow.length], dom[WALLPAPER])
+	      setImage(WALLPAPER, slideshow[slide % slideshow.length])
 	      document.title = parseFilename(slideshow[slide % slideshow.length])
 	    }
 	    break
 	  case '-':
 	    if (!isTyping && layers[MARKS].lineWidth > 1) {
-	      setBrushWidth(parseInt(whiteboardState[BRUSHES][whiteboardState[BRUSH]].width) - 1)
-	      setWhiteboardState(BRUSHES, whiteboardState[BRUSHES])
-	      setWhiteboardState(ERASE_RADIUS, whiteboardState[ERASE_RADIUS])
+	      setBrushWidth(parseInt(wState[BRUSHES][wState[BRUSH]].width) - 1)
+	      setWhiteboardState(BRUSHES, wState[BRUSHES])
+	      setWhiteboardState(ERASE_RADIUS, wState[ERASE_RADIUS])
 	    } 
 	    break;
 	  case '=':
 	    if (!isTyping) {
-	      setBrushWidth(parseInt(whiteboardState[BRUSHES][whiteboardState[BRUSH]].width) + 1)
-	      setWhiteboardState(BRUSHES, whiteboardState[BRUSHES])
-	      setWhiteboardState(ERASE_RADIUS, whiteboardState[ERASE_RADIUS])
+	      setBrushWidth(parseInt(wState[BRUSHES][wState[BRUSH]].width) + 1)
+	      setWhiteboardState(BRUSHES, wState[BRUSHES])
+	      setWhiteboardState(ERASE_RADIUS, wState[ERASE_RADIUS])
 	    }
 	    break;
 	  case '[':
-	    if (!isTyping && whiteboardState[FONT_HEIGHT] > 0) {
-	      setFontHeight(whiteboardState[FONT_HEIGHT] - 1)
+	    if (!isTyping && wState[FONT_HEIGHT] > 0) {
+	      setFontHeight(wState[FONT_HEIGHT] - 1)
 	    }
 	    break
 	  case ']':
-	    if (!isTyping && whiteboardState[FONT_HEIGHT] < 13) {
-	      setFontHeight(whiteboardState[FONT_HEIGHT] + 1)
+	    if (!isTyping && wState[FONT_HEIGHT] < 13) {
+	      setFontHeight(wState[FONT_HEIGHT] + 1)
 	    }
 	    break
 	  case '`':
 	    if (!isTyping) {
-	      lastTool = whiteboardState[TOOL]
-	      whiteboardState[TOOL] = PALETTE
-	      if (whiteboardState[BRUSH] !== 10) {
+	      lastTool = wState[TOOL]
+	      wState[TOOL] = PALETTE
+	      if (wState[BRUSH] !== 10) {
 		setWhiteboardState(BRUSH, 10)
-		layers[MARKS].lineWidth = whiteboardState[BRUSHES][whiteboardState[BRUSH]].width
-		setColor(whiteboardState[BRUSHES][whiteboardState[BRUSH]].color, layers[MARKS])
+		layers[MARKS].lineWidth = wState[BRUSHES][wState[BRUSH]].width
+		setColor(wState[BRUSHES][wState[BRUSH]].color, layers[MARKS])
 	      }
 	      [isPickingColor, dom[PALETTE].style.display] = [true, 'initial']
 	    }
@@ -2187,12 +2483,12 @@
 	  case '8':
 	  case '9':
 	    if (!isTyping) {
-	      lastTool = whiteboardState[TOOL]
-	      whiteboardState[TOOL] = PALETTE
-	      if (parseInt(event.key) !== whiteboardState[BRUSH]) {
+	      lastTool = wState[TOOL]
+	      wState[TOOL] = PALETTE
+	      if (parseInt(event.key) !== wState[BRUSH]) {
 		setWhiteboardState(BRUSH, parseInt(event.key))
-		layers[MARKS].lineWidth = whiteboardState[BRUSHES][whiteboardState[BRUSH]].width
-		setColor(whiteboardState[BRUSHES][whiteboardState[BRUSH]].color, layers[MARKS])
+		layers[MARKS].lineWidth = wState[BRUSHES][wState[BRUSH]].width
+		setColor(wState[BRUSHES][wState[BRUSH]].color, layers[MARKS])
 	      }
 	      [isPickingColor, dom[PALETTE].style.display] = [true, 'initial']
 	    }
@@ -2200,7 +2496,8 @@
 	  case 'v':
 	  case 'V':
 	    if (!isTyping) {
-	      setVanishingPoint(whiteboardState[MOUSE_MOVE_LOCATION].x, whiteboardState[MOUSE_MOVE_LOCATION].y)
+	      setVanishingPoint(wState[MOUSE_MOVE_LOCATION].x, wState[MOUSE_MOVE_LOCATION].y)
+	      wState[TOOL] = GRID
 	    }
 	    break
 	  }
@@ -2225,7 +2522,7 @@
 	  if (!isTyping) {
 	    constraint = VERTICAL
 	  } else { 
-	   whiteboardState[PRINT_HEAD_LOCATION].y -= whiteboardState[LINE_SPACING]
+	   wState[PRINT_HEAD_LOCATION].y -= wState[LINE_SPACING]
 	    drawTextCursor()
 	  }
 	  break
@@ -2234,7 +2531,7 @@
 	  if (!isTyping) {
 	    constraint = HORIZONTAL
 	  } else { 
-	   whiteboardState[PRINT_HEAD_LOCATION].x -= whiteboardState[FONT_WIDTH]
+	   wState[PRINT_HEAD_LOCATION].x -= wState[FONT_WIDTH]
 	    drawTextCursor()
 	  }
 	  break
@@ -2243,7 +2540,7 @@
 	  if (!isTyping) {
 	    constraint = VANISHING
 	  } else { 
-	   whiteboardState[PRINT_HEAD_LOCATION].y += whiteboardState[LINE_SPACING]
+	   wState[PRINT_HEAD_LOCATION].y += wState[LINE_SPACING]
 	    drawTextCursor()
 	  }
 	  break
@@ -2251,19 +2548,20 @@
 	  if (!isTyping) {
 	    constraint = [
 	      COMMITTED, 
-	      VERTICAL_HORIZONTAL, 
-	      HEXAGONAL, 
+	      VERTICAL_HORIZONTAL,
+	      HEXAGONAL,
+	      VERTICAL_HORIZONTAL,
 	      DIAGONAL, 
 	      DOZENAL
 	    ][
-	      [RECTANGLE, ELLIPSE].includes(whiteboardState[TOOL]) 
-		? 3
-		: whiteboardState[TOOL] === LINE 
-		  ? 4
-		  : whiteboardState[GRID_TYPE].x
+	      [RECTANGLE, ELLIPSE].includes(wState[TOOL]) 
+		? 4
+		: wState[TOOL] === LINE 
+		  ? 5
+		  : wState[GRID_TYPE].x
 	    ]
 	    if (constraint === COMMITTED) {
-	      whiteboardState[TOOL] = COMMITTED
+	      wState[TOOL] = COMMITTED
 	    }
 	  }
 	  break
@@ -2277,7 +2575,7 @@
 	  if (!isTyping) {
 	    constraint = PARALLEL
 	  } else { 
-	   whiteboardState[PRINT_HEAD_LOCATION].x += whiteboardState[FONT_WIDTH]
+	   wState[PRINT_HEAD_LOCATION].x += wState[FONT_WIDTH]
 	    drawTextCursor()
 	  }
 	  break
@@ -2318,7 +2616,7 @@
 	  break
 	case 'f':
 	case 'F':
-	  setWhiteboardState(FILL_ACTIVE, !whiteboardState[FILL_ACTIVE])
+	  setWhiteboardState(FILL_ACTIVE, !wState[FILL_ACTIVE])
 	  break
 	case ' ':
 	  event.preventDefault()
@@ -2335,9 +2633,9 @@
 	  isErasing = false
 	  isTyping = false
 	  if (lastTool !== undefined) {
-	    whiteboardState[TOOL] = lastTool
+	    wState[TOOL] = lastTool
 	  } else {
-	    whiteboardState[TOOL] = defaultState[TOOL]
+	    wState[TOOL] = defaultState[TOOL]
 	  }
 	  clearLayer(TOOLS)
 	  break
@@ -2345,20 +2643,20 @@
 	  if (!isTyping) {
 	    clearLayer(MARKS)
 	  } else {
-	   whiteboardState[PRINT_HEAD_LOCATION].x -= whiteboardState[FONT_WIDTH]
+	   wState[PRINT_HEAD_LOCATION].x -= wState[FONT_WIDTH]
 	    layers[MARKS].clearRect(
-	     whiteboardState[PRINT_HEAD_LOCATION].x, 
-	     whiteboardState[PRINT_HEAD_LOCATION].y - fontSizes[whiteboardState[FONT_HEIGHT]], 
-	      whiteboardState[FONT_WIDTH], 
-	      fontSizes[whiteboardState[FONT_HEIGHT]] * 1.21
+	     wState[PRINT_HEAD_LOCATION].x, 
+	     wState[PRINT_HEAD_LOCATION].y - fontSizes[wState[FONT_HEIGHT]], 
+	      wState[FONT_WIDTH], 
+	      fontSizes[wState[FONT_HEIGHT]] * 1.21
 	    )
 	    drawTextCursor()
 	  }
 	  break
 	case 'Enter':
 	  if (isTyping) {
-	   whiteboardState[PRINT_HEAD_LOCATION].x = whiteboardState[MOUSE_DOWN_LOCATION].x
-	   whiteboardState[PRINT_HEAD_LOCATION].y += whiteboardState[LINE_SPACING]
+	   wState[PRINT_HEAD_LOCATION].x = wState[MOUSE_DOWN_LOCATION].x
+	   wState[PRINT_HEAD_LOCATION].y += wState[LINE_SPACING]
 	    drawTextCursor()
 	  }
 	}
@@ -2371,18 +2669,22 @@
 
 	switch (event.key) {
 	case ' ':
-	  spaceIsDown = false
-	  break
+	  if (!isTyping) {
+	    spaceIsDown = false
+	    break
+	  }
 	case 'ArrowRight':
 	case 'ArrowUp':
 	case 'ArrowLeft':
 	case 'ArrowDown':
 	case '/':
 	case 'Control':
-	  if (constraint === COMMITTED) {
-	      whiteboardState[TOOL] = lastTool
+	  if (!isTyping) {
+	    if (constraint === COMMITTED) {
+	      wState[TOOL] = lastTool
+	    }
+	    constraint = NONE
 	  }
-	  constraint = NONE
 	  break
 	case '`':
 	case '0':
@@ -2395,15 +2697,29 @@
 	case '7':
 	case '8':
 	case '9':
-	  whiteboardState[TOOL] = lastTool
-	  isPickingColor = false
-	  dom[PALETTE].style.display = 'none'
-	  break
+	  if (!isTyping) {
+	    wState[TOOL] = lastTool
+	    isPickingColor = false
+	    dom[PALETTE].style.display = 'none'
+	    break
+	  }
 	case 'Shift':
 	  if (!isTyping) {
 	    shiftIsDown = false
 	  }
 	  break
+	case 's':
+	case 'S':
+	  if (!isTyping) {
+	    dom[MARKS].style.zIndex = "6";
+	  }
+	  break
+	case 'v':
+	case 'V':
+	  if (!isTyping) {
+	    wState[TOOL] = lastTool
+	    break
+	  }
 	}
 	keyIsDown = false
       })
@@ -2419,56 +2735,74 @@
       let isDrawingLine = false
       let isTyping = false
       let constraint = NONE
+      let storedFunctions = []
       let currentMouse
 
       const query = parseQueryString(window.location.href)
-      const whiteboardState = {}
-      whiteboardState[SCREEN_SIZE] = query[SCREEN_SIZE] 
-	? new Vector2(query[SCREEN_SIZE]) 
-	: new Vector2(window.screen.width, window.screen.height)
-      whiteboardState[BOARD_SIZE] = query[BOARD_SIZE]
-	? new Vector2(query[BOARD_SIZE]) 
-	: new Vector2(
-	  whiteboardState[SCREEN_SIZE].x * defaultState[BOARD_SCALE].x,
-	  whiteboardState[SCREEN_SIZE].y * defaultState[BOARD_SCALE].y
-	)
-      whiteboardState[WALLPAPER_IMAGE] = query[WALLPAPER_IMAGE] || getCollection(whiteboardState[SCREEN_SIZE])
+      const wState = {}
       Object.assign(
-	whiteboardState, 
+	wState, 
 	{
 	  ...defaultState,
 	  ...JSON.parse(localStorage.getItem(WHITEBOARD_STATE)),
-	  ...whiteboardState,
+	  ...wState,
 	  ...query
 	}
       )
-
-      whiteboardState[ANGLE] = Number(whiteboardState[ANGLE])
-      whiteboardState[BRUSH] = Number(whiteboardState[BRUSH])
-      whiteboardState[ERASE_RADIUS] = Number(whiteboardState[ERASE_RADIUS])
-      whiteboardState[GRID_WIDTH] = Number(whiteboardState[GRID_WIDTH])
-      whiteboardState[ZOOM] = Number(whiteboardState[ZOOM])
-      whiteboardState[VANISHING_POINT] = new Vector2(whiteboardState[VANISHING_POINT])
-      whiteboardState[MOUSE_DOWN_LOCATION] = new Vector2(whiteboardState[MOUSE_DOWN_LOCATION])
-      whiteboardState[MOUSE_MOVE_LOCATION] = new Vector2(whiteboardState[MOUSE_MOVE_LOCATION])
-      whiteboardState[MOUSE_UP_LOCATION] = new Vector2(whiteboardState[MOUSE_UP_LOCATION])
-      whiteboardState[PRINT_HEAD_LOCATION] = new Vector2(whiteboardState[PRINT_HEAD_LOCATION])
-      whiteboardState[MEASUREMENT] = new Vector2(whiteboardState[MEASUREMENT])
-      whiteboardState[OVERLAY_COLOR] = new Color(whiteboardState[OVERLAY_COLOR])
-      whiteboardState[GRID_COLOR] = new Color(whiteboardState[GRID_COLOR])
-      whiteboardState[GRID_TYPE] = new Vector2(whiteboardState[GRID_TYPE])
-      whiteboardState[SQUARE_GRID_UNITS] = new Vector2(whiteboardState[SQUARE_GRID_UNITS])
-      whiteboardState[BRUSHES].forEach((brush) => {
+      wState[SCREEN_SIZE] = query[SCREEN_SIZE] 
+	? new Vector2(query[SCREEN_SIZE]) 
+	: new Vector2(window.screen.width, window.screen.height)
+      wState[BOARD_SIZE] = query[BOARD_SIZE]
+	? new Vector2(query[BOARD_SIZE]) 
+	: new Vector2(
+	  wState[SCREEN_SIZE].x * defaultState[BOARD_SCALE].x,
+	  wState[SCREEN_SIZE].y * defaultState[BOARD_SCALE].y
+	)
+      wState[WALLPAPER_IMAGE] = query[WALLPAPER_IMAGE] || getCollection(wState[SCREEN_SIZE])
+      wState[ANGLE] = Number(wState[ANGLE])
+      wState[BRUSH] = Number(wState[BRUSH])
+      wState[ERASE_RADIUS] = Number(wState[ERASE_RADIUS])
+      wState[GRID_WIDTH] = Number(wState[GRID_WIDTH])
+      wState[ZOOM] = Number(wState[ZOOM])
+      if (wState.hasOwnProperty(VANISHING_POINT)) {
+	wState[VANISHING_POINT] = new Vector2(wState[VANISHING_POINT])
+      } else {
+	wState[VANISHING_POINT] = new Vector2(
+	  wState[SCREEN_SIZE].x / 2,
+	  wState[SCREEN_SIZE].y / 2
+	)
+      }
+      wState[MOUSE_DOWN_LOCATION] = new Vector2(wState[MOUSE_DOWN_LOCATION])
+      wState[MOUSE_MOVE_LOCATION] = new Vector2(wState[MOUSE_MOVE_LOCATION])
+      wState[MOUSE_UP_LOCATION] = new Vector2(wState[MOUSE_UP_LOCATION])
+      wState[PRINT_HEAD_LOCATION] = new Vector2(wState[PRINT_HEAD_LOCATION])
+      wState[MEASUREMENT] = new Vector2(wState[MEASUREMENT])
+      wState[OVERLAY_COLOR] = new Color(wState[OVERLAY_COLOR])
+      wState[GRID_COLOR] = new Color(wState[GRID_COLOR])
+      wState[GRID_TYPE] = new Vector2(wState[GRID_TYPE])
+      wState[SQUARE_GRID_UNITS] = new Vector2(wState[SQUARE_GRID_UNITS])
+      wState[TIME_PADDING] = new Vector2(wState[TIME_PADDING])
+      wState[BRUSHES].forEach((brush) => {
 	brush.color = new Color(brush.color)
       })
-      whiteboardState[FUNCTIONS] = []
-      let lastTool = whiteboardState[TOOL]
+      wState[TOOLS_COLOR] = new Color(wState[TOOLS_COLOR])
+      wState[SAVE_PROMPT_ACTIVE] = query.hasOwnProperty(SAVE_PROMPT_ACTIVE)
+	? query[SAVE_PROMPT_ACTIVE] 
+	: defaultState[SAVE_PROMPT_ACTIVE]
+      let lastTool 
+      if (wState[TOOL] === PALETTE
+	|| wState[TOOL] === GRID
+	|| wState[TOOL] === COMMITTED) {
+	setWhiteboardState(TOOL, PAINT_BRUSH)
+      }
+      lastTool= wState[TOOL]
 
       dom[PROBLEM].style.display = 'none'
       dom[PALETTE].style.display = 'none'
       layers[MARKS].lineJoin = 'round'
       layers[MARKS].lineCap = 'round'
-      applyState(whiteboardState)
+
+      applyState(wState)
 
       document.title = query[DOCUMENT_TITLE] || query[MARKS_DATA] || 'Whiteboard' 
       /* || query[MARKS_IMAGE] 
@@ -2476,23 +2810,20 @@
 	 : query[WALLPAPER_IMAGE] 
 	 ? parseFilename(query[WALLPAPER_IMAGE]) 
 	 : 'Whiteboard' */
-      query[MARKS_IMAGE] && setImage(query[MARKS_IMAGE], layers[MARKS])
+      query[MARKS_IMAGE] && setImage(MARKS, query[MARKS_IMAGE])
       
-      console.log(`Wallpaper Image: ${whiteboardState[WALLPAPER_IMAGE]}`)
+      console.log(`Wallpaper Image: ${wState[WALLPAPER_IMAGE]}`)
       if (query[PROBLEM_IMAGE]) {
 	const problemImg = document.createElement('img')
 	problemImg.src = query[PROBLEM_IMAGE]
 	  dom[PROBLEM].appendChild(problemImg)	
       }
-      if (whiteboardState[TOOL] === TEXT) {
+      if (wState[TOOL] === TEXT) {
 	drawTextCursor()
 	isTyping = true
-      } else if (whiteboardState[TOOL] === COMMITTED 
-	|| whiteboardState[TOOL] === PALETTE) {
-	whiteboardState[TOOL] = PAINT_BRUSH
       }
-      if (whiteboardState[SAVED_MARKS_DATA][query[MARKS_DATA]]) {
-	setImage(whiteboardState[SAVED_MARKS_DATA][query[MARKS_DATA]], layers[MARKS])
+      if (wState[SAVED_MARKS_DATA][query[MARKS_DATA]]) {
+	setImage(MARKS, wState[SAVED_MARKS_DATA][query[MARKS_DATA]])
       }
     </script>
   </body>
