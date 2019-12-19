@@ -28,7 +28,7 @@ OTHER CONTROLS: <br />
 &nbsp;&nbsp;'\[', ']' - adjust font size<br />
 &nbsp;&nbsp;F - toggle fill for shapes<br />
 &nbsp;&nbsp;V - place vanishing point, hold down to scale grid units<br />
-&nbsp;&nbsp;G - select between no grid, a square grid, and a triangular grid<br />
+&nbsp;&nbsp;G - select between no grid, a square grid, a triangular grid, and some time-management tools<br />
 &nbsp;&nbsp;J - select manner in which grid cells are outlined<br />
 &nbsp;&nbsp;I - reset unsplash image<br />
 &nbsp;&nbsp;S - save marks data (load with query parameter)<br />
